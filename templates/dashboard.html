@@ -1,0 +1,341 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto space-y-8">
+
+    <!-- 初學者指南按鈕 -->
+    <div class="flex justify-end mb-4">
+        <a href="{{ url_for('beginner_guide') }}" class="btn-game bg-game-purple text-white px-6 py-3 rounded-xl font-bold border-b-4 border-purple-600 flex items-center gap-2">
+            <i data-lucide="help-circle" class="w-5 h-5"></i>
+            {{ t('dash_beginner_guide') }}
+        </a>
+    </div>
+
+    <!-- 新手提示橫幅 -->
+    {% if show_tip %}
+    <div id="tip-banner" class="bg-blue-100 border-l-8 border-game-blue rounded-2xl p-6 flex items-start gap-4 shadow-md">
+        <div class="w-12 h-12 bg-game-blue rounded-full flex items-center justify-center text-white shrink-0">
+            <i data-lucide="party-popper" class="w-6 h-6"></i>
+        </div>
+        <div class="flex-1">
+            <h3 class="font-black text-game-blue text-xl mb-1">{{ t('dash_congrats') }}</h3>
+            <p class="text-gray-600 font-bold">{{ t('dash_tip_text') }} <a href="{{ url_for('beginner_guide') }}" class="text-game-blue underline font-black">{{ t('dash_tip_link') }}</a> {{ t('dash_tip_suffix') }}</p>
+        </div>
+        <button onclick="hideTip()" class="text-gray-400 hover:text-gray-600">
+            <i data-lucide="x" class="w-6 h-6"></i>
+        </button>
+    </div>
+    {% endif %}
+
+    <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+        <div class="flex items-center gap-4">
+            <label for="avatar-upload" class="relative group cursor-pointer block w-16 h-16">
+                <div class="w-16 h-16 rounded-full border-4 border-white shadow-md overflow-hidden bg-gray-100 flex items-center justify-center">
+                    <img id="profile-avatar"
+                         src="{{ user.avatar_url if user.avatar_url else 'https://img.icons8.com/color/96/user-male-circle--v1.png' }}"
+                         onerror="this.onerror=null;this.src='https://img.icons8.com/color/96/user-male-circle--v1.png'"
+                         class="w-full h-full object-cover">
+                </div>
+                <div class="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <i data-lucide="camera" class="text-white w-6 h-6"></i>
+                </div>
+                <input type="file" id="avatar-upload" class="hidden" accept="image/png,image/jpeg,image/gif" onchange="uploadAvatar(event)">
+            </label>
+
+            <div>
+                <h1 class="text-3xl font-black text-gray-800">{{ t('dash_greeting').format(name=user.name) }}</h1>
+                <p class="text-gray-500 font-bold mt-1">{{ t('dash_subtitle') }}</p>
+            </div>
+        </div>
+
+        <div class="flex gap-4">
+            <div class="flex items-center gap-2 bg-white px-4 py-2 rounded-2xl border-2 border-gray-200 shadow-sm">
+                <i data-lucide="flame" class="text-orange-500 fill-orange-500 w-6 h-6"></i>
+                <span class="font-black text-xl text-orange-500" id="weekly-sessions">--</span>
+            </div>
+            <div class="flex items-center gap-2 bg-white px-4 py-2 rounded-2xl border-2 border-gray-200 shadow-sm">
+                <i data-lucide="gem" class="text-game-blue fill-game-blue w-6 h-6"></i>
+                <span class="font-black text-xl text-game-blue" id="total-sessions">--</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+        <div class="lg:col-span-2 space-y-8">
+            <div class="bg-game-blue text-white rounded-3xl p-8 relative overflow-hidden card-3d border-b-blue-800">
+                <div class="relative z-10 flex justify-between items-center">
+                    <div>
+                        <h2 class="text-2xl font-black mb-2">{{ t('dash_continue') }}</h2>
+                        <p class="font-bold opacity-90 mb-6">{{ t('dash_last_progress') }}</p>
+                        <a href="/therapy" class="bg-white text-game-blue px-6 py-3 rounded-full font-black hover:bg-gray-100 transition-colors inline-block">
+                            {{ t('dash_start_practice') }} <i data-lucide="play" class="w-5 h-5 inline mb-1"></i>
+                        </a>
+                    </div>
+                    <div class="w-32 h-32 bg-blue-400 rounded-full flex items-center justify-center">
+                        <img src="https://img.icons8.com/color/160/treasure-chest.png" class="w-24 h-24">
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <div class="flex justify-between items-end mb-4">
+                    <h2 class="text-2xl font-black text-gray-800">{{ t('dash_today_challenge') }}</h2>
+                    <span class="text-sm font-bold text-gray-500" id="challenge-timer">{{ t('dash_remaining') }} 12:45:00</span>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="daily-challenges-container">
+                    <div class="animate-pulse bg-gray-200 h-24 rounded-2xl"></div>
+                    <div class="animate-pulse bg-gray-200 h-24 rounded-2xl"></div>
+                    <div class="animate-pulse bg-gray-200 h-24 rounded-2xl"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="space-y-8">
+            <div class="bg-white rounded-3xl p-6 border-4 border-gray-200 shadow-sm">
+                <h3 class="text-xl font-black text-gray-800 mb-4 flex items-center gap-2">
+                    <i data-lucide="bar-chart-2" class="text-game-green"></i> {{ t('dash_stats_title') }}
+                </h3>
+                <div class="space-y-4">
+                    <div>
+                        <div class="flex justify-between text-sm font-bold mb-1">
+                            <span class="text-gray-500">{{ t('dash_avg_accuracy') }}</span>
+                            <span class="text-game-green" id="avg-score">--%</span>
+                        </div>
+                        <div class="w-full bg-gray-100 rounded-full h-3">
+                            <div class="bg-game-green h-3 rounded-full transition-all duration-1000 w-0" id="score-bar"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-sm font-bold mb-1">
+                            <span class="text-gray-500">{{ t('dash_best_score') }}</span>
+                            <span class="text-game-yellow" id="best-score">--%</span>
+                        </div>
+                        <div class="w-full bg-gray-100 rounded-full h-3">
+                            <div class="bg-game-yellow h-3 rounded-full transition-all duration-1000 w-0" id="best-bar"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-3xl p-6 border-4 border-gray-200 shadow-sm">
+                <h3 class="text-xl font-black text-gray-800 mb-4 flex items-center gap-2">
+                    <i data-lucide="target" class="text-game-red"></i> {{ t('dash_targeted_training') }}
+                </h3>
+                <div class="space-y-3" id="weakness-container">
+                    <p class="text-gray-500 text-sm font-bold">{{ t('common_loading') }}</p>
+                </div>
+            </div>
+
+            <!-- Leaderboard -->
+            <div class="bg-white rounded-3xl p-6 border-4 border-gray-200 shadow-sm">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xl font-black text-gray-800 flex items-center gap-2">
+                        <i data-lucide="trophy" class="text-game-yellow"></i> {{ t('dash_leaderboard') }}
+                    </h3>
+                    <span class="text-xs font-bold text-gray-400" id="leaderboard-updated"></span>
+                </div>
+                <div id="leaderboard-container" class="space-y-2">
+                    <div class="animate-pulse space-y-2">
+                        <div class="h-10 bg-gray-100 rounded-xl"></div>
+                        <div class="h-10 bg-gray-100 rounded-xl"></div>
+                        <div class="h-10 bg-gray-100 rounded-xl"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+lucide.createIcons();
+
+const _t = {
+    no_mistakes: {{ t('dash_no_mistakes')|tojson }},
+    practice: {{ t('dash_practice_btn')|tojson }},
+    you: {{ t('dash_you')|tojson }},
+    sessions: {{ t('dash_sessions')|tojson }},
+    no_records: {{ t('dash_no_records')|tojson }},
+    updated: {{ t('dash_updated')|tojson }},
+    upload_fail: {{ t('dash_upload_fail')|tojson }},
+    upload_error: {{ t('dash_upload_error')|tojson }},
+    remaining: {{ t('dash_remaining')|tojson }},
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    fetchStats();
+    fetchDailyChallenges();
+    fetchPersonalized();
+    fetchLeaderboard();
+});
+
+async function fetchStats() {
+    try {
+        const res = await fetch('/api/user_stats');
+        const data = await res.json();
+
+        document.getElementById('total-sessions').innerText = data.total_sessions;
+        document.getElementById('weekly-sessions').innerText = data.current_streak;
+
+        document.getElementById('avg-score').innerText = `${data.avg_score}%`;
+        document.getElementById('score-bar').style.width = `${data.avg_score}%`;
+
+        document.getElementById('best-score').innerText = `${data.best_score}%`;
+        document.getElementById('best-bar').style.width = `${data.best_score}%`;
+    } catch (err) { console.error(err); }
+}
+
+async function fetchDailyChallenges() {
+    try {
+        const res = await fetch('/api/challenges/daily');
+        const data = await res.json();
+        const container = document.getElementById('daily-challenges-container');
+        let html = '';
+
+        const colors = ['bg-sky-400 hover:bg-sky-500', 'bg-emerald-400 hover:bg-emerald-500', 'bg-violet-400 hover:bg-violet-500'];
+        const borderColors = ['border-b-sky-600', 'border-b-emerald-600', 'border-b-violet-600'];
+
+        data.challenges.forEach((c, index) => {
+            const color = colors[index % 3];
+            const borderColor = borderColors[index % 3];
+            html += `
+            <button onclick="startExercise('${c.word}', '${c.ipa}')" class="w-full btn-game ${color} ${borderColor} text-white p-4 rounded-2xl flex items-center justify-between gap-3 group min-h-[80px]">
+                <div class="text-left flex-1 min-w-0">
+                    <p class="font-black text-base leading-tight">${c.title}</p>
+                    <p class="font-bold opacity-80 text-sm mt-1">${c.word}</p>
+                </div>
+                <div class="bg-white/20 p-2 rounded-xl shrink-0">
+                    <i data-lucide="play" class="w-6 h-6 fill-current"></i>
+                </div>
+            </button>
+            `;
+        });
+        container.innerHTML = html;
+        lucide.createIcons();
+    } catch (err) { console.error(err); }
+}
+
+async function fetchPersonalized() {
+    try {
+        const res = await fetch('/api/exercises/personalized');
+        const data = await res.json();
+        const container = document.getElementById('weakness-container');
+
+        if (!data.recommendations || data.recommendations.length === 0) {
+            container.innerHTML = `<p class="text-gray-500 text-sm font-bold bg-gray-50 p-3 rounded-xl">${_t.no_mistakes}</p>`;
+            return;
+        }
+
+        let html = '';
+        data.recommendations.forEach(r => {
+            html += `
+            <div class="flex items-center justify-between p-3 bg-red-50 rounded-xl border border-red-100">
+                <div>
+                    <p class="font-black text-gray-800">${r.word}</p>
+                    <p class="text-xs font-bold text-gray-500">${r.ipa}</p>
+                </div>
+                <button onclick="startExercise('${r.word}', '${r.ipa}')" class="bg-white text-game-red px-3 py-1 rounded-lg text-sm font-bold shadow-sm hover:bg-red-100 transition-colors">
+                    ${_t.practice}
+                </button>
+            </div>
+            `;
+        });
+        container.innerHTML = html;
+    } catch (err) { console.error(err); }
+}
+
+function startExercise(word, ipa) {
+    sessionStorage.setItem('recommended_exercise', JSON.stringify({ word: word, ipa: ipa }));
+    window.location.href = '/therapy/pronounce';
+}
+async function fetchLeaderboard() {
+    try {
+        const res = await fetch('/api/leaderboard');
+        const data = await res.json();
+        const container = document.getElementById('leaderboard-container');
+        const medals = ['🥇', '🥈', '🥉'];
+        const rankColors = ['bg-yellow-50 border-yellow-200', 'bg-gray-50 border-gray-200', 'bg-orange-50 border-orange-200'];
+
+        let html = '';
+        data.leaderboard.forEach((entry, i) => {
+            const isMe = entry.is_me;
+            const medal = medals[i] || `<span class="font-black text-gray-400 text-sm">${entry.rank}</span>`;
+            const rowBg = isMe
+                ? 'bg-blue-50 border-2 border-game-blue'
+                : (i < 3 ? `border ${rankColors[i]}` : 'bg-gray-50 border border-gray-100');
+
+            html += `
+            <div class="flex items-center gap-3 px-3 py-2 rounded-xl ${rowBg}">
+                <div class="w-7 text-center text-lg flex-shrink-0">${medal}</div>
+                <img src="${entry.avatar_url}" onerror="this.src='https://img.icons8.com/color/96/user-male-circle--v1.png'"
+                     class="w-7 h-7 rounded-full object-cover flex-shrink-0">
+                <span class="font-black text-gray-800 text-sm flex-1 truncate">
+                    ${entry.name}${isMe ? ` <span class="text-game-blue text-xs">${_t.you}</span>` : ''}
+                </span>
+                <span class="font-black text-game-blue text-sm flex-shrink-0">${entry.total_sessions} ${_t.sessions}</span>
+            </div>`;
+        });
+
+        if (data.leaderboard.length === 0) {
+            html = `<p class="text-gray-400 text-sm font-bold text-center py-4">${_t.no_records}</p>`;
+        }
+
+        container.innerHTML = html;
+
+        const now = new Date();
+        document.getElementById('leaderboard-updated').textContent =
+            _t.updated.replace('{time}', `${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`);
+    } catch (err) { console.error(err); }
+}
+
+function updateChallengeTimer() {
+    const timerElement = document.getElementById('challenge-timer');
+    if (!timerElement) return;
+
+    const now = new Date();
+    const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    const diff = tomorrow - now;
+
+    const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const s = Math.floor((diff % (1000 * 60)) / 1000);
+
+    const format = (num) => num.toString().padStart(2, '0');
+
+    timerElement.innerText = `${_t.remaining} ${format(h)}:${format(m)}:${format(s)}`;
+}
+
+updateChallengeTimer();
+setInterval(updateChallengeTimer, 1000);
+
+setInterval(fetchLeaderboard, 60 * 60 * 1000);
+
+async function uploadAvatar(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        document.getElementById('profile-avatar').src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+
+    const formData = new FormData();
+    formData.append('avatar', file);
+
+    try {
+        const response = await fetch('/api/upload_avatar', { method: 'POST', body: formData });
+        const data = await response.json();
+        if (data.success) {
+            document.getElementById('profile-avatar').src = data.avatar_url + '?t=' + Date.now();
+        } else {
+            alert(_t.upload_fail + (data.error || ''));
+            document.getElementById('profile-avatar').src = '{{ user.avatar_url or "https://img.icons8.com/color/96/user-male-circle--v1.png" }}';
+        }
+    } catch (error) {
+        alert(_t.upload_error);
+    }
+    event.target.value = '';
+}
+</script>
+{% endblock %}

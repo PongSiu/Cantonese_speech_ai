@@ -1,0 +1,541 @@
+{% extends "base.html" %}
+{% block content %}
+<!-- MediaPipe Face Mesh -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
+
+<div class="max-w-2xl mx-auto h-full flex flex-col justify-center relative">
+
+    <!-- ==================== UI: Flashcard Area ==================== -->
+    <div class="relative w-full aspect-[4/3] perspective-1000">
+        <!-- The Card -->
+        <div id="flashcard" class="w-full h-full bg-white rounded-[40px] border-4 border-gray-200 shadow-[0_10px_0_#e5e7eb] flex flex-col items-center justify-center p-8 relative overflow-hidden transition-all duration-300">
+            
+            <!-- Difficulty Label -->
+            <div class="absolute top-6 left-6 bg-yellow-100 text-yellow-700 px-4 py-1 rounded-full font-black text-sm uppercase" id="difficulty-badge">
+                {{ t('pronounce_beginner') }}
+            </div>
+            
+            <!-- Controls (Top Right) -->
+            <div class="absolute top-6 right-6 flex gap-2">
+                <button onclick="showExerciseInfo()" class="p-2 text-gray-300 hover:text-game-blue transition-colors">
+                    <i data-lucide="info" class="w-8 h-8"></i>
+                </button>
+                <button onclick="loadNewExercise(currentDifficulty)" class="p-2 text-gray-300 hover:text-game-green transition-colors">
+                    <i data-lucide="shuffle" class="w-8 h-8"></i>
+                </button>
+            </div>
+
+            <!-- Card Content -->
+            <div class="text-center space-y-4 z-10">
+                <p class="text-gray-400 font-bold uppercase tracking-widest text-sm">{{ t('pronounce_read_word') }}</p>
+                <h2 id="exercise-word" class="text-7xl font-black text-gray-800 tracking-tight">--</h2>
+                
+                <!-- 🌟 新增：粵拼與示範語音喇叭按鈕 🌟 -->
+                <div class="bg-gray-100 px-6 py-2 rounded-2xl inline-flex items-center gap-4">
+                    <p id="exercise-ipa" class="text-xl font-mono text-gray-500 font-bold">--</p>
+                    <button id="play-sample-btn" onclick="playSampleAudio()" class="w-8 h-8 bg-blue-100 text-game-blue rounded-full flex items-center justify-center hover:bg-blue-200 transition-colors shrink-0 shadow-sm">
+                        <i data-lucide="volume-2" class="w-4 h-4"></i>
+                    </button>
+                </div>
+                
+                <!-- Image container -->
+                <div id="image-container" class="mt-4 hidden">
+                    <img id="exercise-image" src="" alt="icon" class="max-h-32 mx-auto rounded-lg shadow-md">
+                </div>
+            </div>
+            
+            <!-- Result Overlay (Hidden) -->
+            <div id="result-overlay" class="absolute inset-0 bg-white/95 z-20 hidden flex flex-col items-center justify-center">
+                <div id="score-icon" class="mb-4 transform transition-all"></div>
+                <h3 id="user-score" class="text-5xl font-black mb-2 text-game-green">--</h3>
+                <p id="ai-feedback" class="text-gray-500 font-bold max-w-xs text-center mb-6">...</p>
+                
+                <div class="flex gap-4">
+                    <button onclick="recordAgain()" class="btn-game bg-gray-200 text-gray-600 px-6 py-3 rounded-xl font-bold border-b-4 border-gray-300">
+                        {{ t('pronounce_try_again') }}
+                    </button>
+                    <button onclick="loadNewExercise(currentDifficulty)" class="btn-game bg-game-green text-white px-6 py-3 rounded-xl font-bold border-b-4 border-green-600">
+                        {{ t('pronounce_next_card') }}
+                    </button>
+                </div>
+            </div>
+
+            <!-- Bottom Wave Decoration -->
+            <div class="absolute bottom-0 left-0 right-0 h-24 bg-game-bg rounded-t-[50%] opacity-50 translate-y-12"></div>
+        </div>
+    </div>
+
+    <!-- ==================== UI: Face Detection Camera ==================== -->
+    <div id="camera-preview" class="fixed bottom-4 right-4 w-48 h-36 md:w-64 md:h-48 bg-black rounded-2xl overflow-hidden shadow-2xl border-4 border-white z-50 hidden transition-all hover:scale-105">
+        <video id="camera-feed" autoplay muted playsinline class="w-full h-full object-cover transform scale-x-[-1]"></video>
+        <canvas id="face-canvas" class="absolute top-0 left-0 w-full h-full pointer-events-none transform scale-x-[-1]"></canvas>
+
+        <div class="absolute bottom-0 left-0 right-0 bg-black/60 backdrop-blur-sm text-white text-[10px] md:text-xs p-2 flex justify-between">
+            <div class="flex items-center gap-1">
+                <div id="face-status" class="w-2 h-2 rounded-full bg-red-500"></div>
+                <span>{{ t('pronounce_face_label') }}</span>
+            </div>
+            <div class="flex items-center gap-1">
+                <div id="lip-status" class="w-2 h-2 rounded-full bg-red-500"></div>
+                <span>{{ t('pronounce_lip_label') }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Warning Toast -->
+    <div id="lip-warning" class="fixed top-24 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-6 py-3 rounded-xl font-bold shadow-xl z-50 hidden animate-bounce flex items-center gap-2">
+        <i data-lucide="megaphone" class="w-5 h-5"></i>
+        <span>{{ t('pronounce_lip_warning') }}</span>
+    </div>
+
+    <!-- Permission Modal -->
+    <div id="face-detection-modal" class="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl p-8 max-w-sm w-full text-center border-4 border-game-blue">
+            <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i data-lucide="camera" class="w-8 h-8 text-game-blue"></i>
+            </div>
+            <h3 class="text-xl font-black text-gray-800 mb-2">{{ t('pronounce_face_detect') }}</h3>
+            <p class="text-gray-500 font-bold mb-6 text-sm">{{ t('pronounce_face_hint') }}</p>
+            <div class="flex flex-col gap-3">
+                <button id="enable-camera-btn" class="btn-game bg-game-blue text-white px-6 py-3 rounded-xl font-bold border-b-4 border-blue-600">
+                    {{ t('pronounce_enable_camera') }}
+                </button>
+                <button id="skip-camera-btn" class="btn-game bg-gray-100 text-gray-500 px-6 py-3 rounded-xl font-bold border-b-4 border-gray-200">
+                    {{ t('pronounce_skip_camera') }}
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== UI: Controls ==================== -->
+    <div class="mt-8 flex justify-center items-center gap-8">
+        <!-- Difficulty Menu -->
+        <div class="relative group">
+            <button class="bg-white p-4 rounded-2xl border-b-4 border-gray-200 text-gray-400 font-bold hover:bg-gray-50 active:border-b-0 active:mt-1">
+                <i data-lucide="settings-2" class="w-6 h-6"></i>
+            </button>
+            <div class="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-32 bg-white rounded-xl shadow-xl p-2 hidden group-hover:block z-30">
+                <button onclick="changeDifficulty('beginner')" class="w-full text-left px-3 py-2 rounded hover:bg-green-50 text-green-600 font-bold">{{ t('pronounce_beginner') }}</button>
+                <button onclick="changeDifficulty('intermediate')" class="w-full text-left px-3 py-2 rounded hover:bg-yellow-50 text-yellow-600 font-bold">{{ t('pronounce_intermediate') }}</button>
+                <button onclick="changeDifficulty('advanced')" class="w-full text-left px-3 py-2 rounded hover:bg-red-50 text-red-600 font-bold">{{ t('pronounce_advanced') }}</button>
+            </div>
+        </div>
+
+        <!-- Big Mic Button -->
+        <button id="record-btn" class="w-24 h-24 rounded-full bg-game-blue border-b-8 border-blue-600 flex items-center justify-center text-white shadow-xl hover:bg-blue-400 active:border-b-0 active:translate-y-2 transition-all">
+            <i data-lucide="mic" class="w-10 h-10"></i>
+        </button>
+
+        <!-- Status Indicator -->
+        <div id="detection-status-pill" class="hidden absolute -bottom-12 bg-white px-4 py-1 rounded-full text-xs font-bold text-gray-400 border border-gray-200">
+            {{ t('pronounce_ready') }}
+        </div>
+    </div>
+</div>
+
+<!-- 隱藏的翻譯數據 -->
+<div id="translation-data" class="hidden"
+    data-beginner="{{ t('pronounce_beginner') }}"
+    data-intermediate="{{ t('pronounce_intermediate') }}"
+    data-advanced="{{ t('pronounce_advanced') }}"
+    data-keep-going="{{ t('pronounce_keep_going') }}"
+    data-skip-detect="{{ t('pronounce_skip_detect') }}"
+    data-no-camera="{{ t('pronounce_no_camera') }}"
+    data-waiting-camera="{{ t('pronounce_waiting_camera') }}"
+    data-detecting="{{ t('pronounce_detecting') }}"
+    data-camera-fail="{{ t('pronounce_camera_fail') }}"
+    data-face-align="{{ t('pronounce_face_align') }}"
+    data-detecting-speak="{{ t('pronounce_detecting_speak') }}"
+    data-speech-detected="{{ t('pronounce_speech_detected') }}"
+    data-face-detected="{{ t('pronounce_face_detected') }}"
+    data-ready="{{ t('pronounce_ready') }}"
+    data-record-error="{{ t('pronounce_record_error') }}"
+    data-analysis-fail="{{ t('pronounce_analysis_fail') }}"
+    data-camera-error="{{ t('pronounce_camera_error') }}">
+</div>
+
+<script>
+    const tData = document.getElementById('translation-data').dataset;
+    const _t = {
+        beginner: tData.beginner, intermediate: tData.intermediate, advanced: tData.advanced,
+        keep_going: tData.keepGoing, skip_detect: tData.skipDetect, no_camera: tData.noCamera,
+        waiting_camera: tData.waitingCamera, detecting: tData.detecting, camera_fail: tData.cameraFail,
+        face_align: tData.faceAlign, detecting_speak: tData.detectingSpeak, speech_detected: tData.speechDetected,
+        face_detected: tData.faceDetected, ready: tData.ready, record_error: tData.recordError,
+        analysis_fail: tData.analysisFail, camera_error: tData.cameraError
+    };
+
+    let currentExercise = null;
+    let currentDifficulty = 'beginner';
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let isRecording = false;
+
+    let faceDetector = null;
+    let cameraStream = null;
+    let lipMovementDetected = false;
+    let faceDetected = false;
+    let detectionInterval = null;
+    let lastLipMovementTime = 0;
+    let faceDetectionEnabled = true;
+    let skipFaceDetection = false;
+
+    // 🌟 新增：播放示範發音 API 呼叫 🌟
+    async function playSampleAudio() {
+        if (!currentExercise || (!currentExercise.word && !currentExercise.text)) return;
+        const textToSpeak = currentExercise.word || currentExercise.text;
+        
+        const btn = document.getElementById('play-sample-btn');
+        // 顯示 Loading 動畫
+        btn.innerHTML = '<div class="animate-spin w-4 h-4 border-2 border-game-blue border-t-transparent rounded-full"></div>';
+        
+        try {
+            const res = await fetch('/api/synthesize', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({text: textToSpeak})
+            });
+            const data = await res.json();
+            
+            if (data.audio_base64) {
+                // 播放由後端傳返嚟嘅 Base64 音頻
+                const audio = new Audio("data:audio/mp3;base64," + data.audio_base64);
+                audio.play();
+            } else {
+                alert("無法獲取示範語音");
+            }
+        } catch (e) {
+            console.error("播放語音出錯", e);
+        } finally {
+            // 變返喇叭 Icon
+            btn.innerHTML = '<i data-lucide="volume-2" class="w-4 h-4"></i>';
+            lucide.createIcons();
+        }
+    }
+
+    class FaceLipDetector {
+        constructor() {
+            this.videoElement = null; this.canvasElement = null; this.canvasCtx = null;
+            this.faceMesh = null; this.isRunning = false; this.lastMouthDistance = null;
+            this.mouthDistanceHistory = []; this.historySize = 5; this.movementThreshold = 0.015;
+            this.onFaceDetected = null; this.onLipMovement = null; this.onDetectionStatus = null;
+        }
+
+        initialize(videoElement, canvasElement) {
+            this.videoElement = videoElement; this.canvasElement = canvasElement; this.canvasCtx = canvasElement.getContext('2d');
+            this.faceMesh = new FaceMesh({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}` });
+            this.faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+            this.faceMesh.onResults(this.onResults.bind(this));
+        }
+
+        async onResults(results) {
+            this.canvasCtx.clearRect(0, 0, this.canvasElement.width, this.canvasElement.height);
+            if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
+                const landmarks = results.multiFaceLandmarks[0];
+                if (!faceDetected) { faceDetected = true; if (this.onFaceDetected) this.onFaceDetected(true); }
+
+                const upperLip = landmarks[13]; const lowerLip = landmarks[14];
+                if (upperLip && lowerLip) {
+                    const x = upperLip.x * this.canvasElement.width; const y = upperLip.y * this.canvasElement.height;
+                    this.canvasCtx.fillStyle = '#00FF00'; this.canvasCtx.beginPath(); this.canvasCtx.arc(x, y, 3, 0, 2 * Math.PI); this.canvasCtx.fill();
+
+                    const dist = Math.sqrt(Math.pow(upperLip.x - lowerLip.x, 2) + Math.pow(upperLip.y - lowerLip.y, 2) + Math.pow(upperLip.z - lowerLip.z, 2));
+                    this.mouthDistanceHistory.push(dist);
+                    if (this.mouthDistanceHistory.length > this.historySize) this.mouthDistanceHistory.shift();
+
+                    if (this.lastMouthDistance !== null) {
+                        const avgDist = this.mouthDistanceHistory.reduce((a, b) => a + b, 0) / this.mouthDistanceHistory.length;
+                        const change = Math.abs(avgDist - this.lastMouthDistance);
+                        if (change > this.movementThreshold) {
+                            lipMovementDetected = true; lastLipMovementTime = Date.now();
+                            if (this.onLipMovement) this.onLipMovement(true);
+                        }
+                    }
+                    this.lastMouthDistance = this.mouthDistanceHistory.reduce((a, b) => a + b, 0) / this.mouthDistanceHistory.length;
+                }
+                if (this.onDetectionStatus) this.onDetectionStatus({ faceDetected: true, lipMovementDetected });
+            } else {
+                if (faceDetected) { faceDetected = false; if (this.onFaceDetected) this.onFaceDetected(false); }
+                if (this.onDetectionStatus) this.onDetectionStatus({ faceDetected: false, lipMovementDetected: false });
+            }
+        }
+
+        startDetection() { if (this.isRunning) return; this.isRunning = true; this.processFrame(); }
+        async processFrame() {
+            if (!this.isRunning) return;
+            if (this.videoElement.readyState >= 2) { await this.faceMesh.send({ image: this.videoElement }); }
+            requestAnimationFrame(this.processFrame.bind(this));
+        }
+        stopDetection() { this.isRunning = false; }
+    }
+
+    document.addEventListener('DOMContentLoaded', async function () {
+        if (typeof FaceMesh !== 'undefined') { initializeFaceDetection(); } 
+        else { setTimeout(() => { if (typeof FaceMesh !== 'undefined') initializeFaceDetection(); }, 1000); }
+
+        document.getElementById('enable-camera-btn').addEventListener('click', enableCamera);
+        document.getElementById('skip-camera-btn').addEventListener('click', skipCameraDetection);
+
+        const recommended = sessionStorage.getItem('recommended_exercise');
+        const challengeQueue = sessionStorage.getItem('challenge_queue');
+
+        if (recommended) {
+            currentExercise = JSON.parse(recommended);
+            displayExercise(currentExercise);
+            sessionStorage.removeItem('recommended_exercise');
+        } else if (challengeQueue) {
+            await loadNewExercise(currentDifficulty);
+        } else {
+            await loadNewExercise(currentDifficulty);
+        }
+
+        setTimeout(checkCameraAvailability, 1000);
+    });
+
+    function initializeFaceDetection() {
+        faceDetector = new FaceLipDetector();
+        const video = document.getElementById('camera-feed');
+        const canvas = document.getElementById('face-canvas');
+        faceDetector.initialize(video, canvas);
+
+        faceDetector.onDetectionStatus = (status) => {
+            const faceEl = document.getElementById('face-status');
+            const lipEl = document.getElementById('lip-status');
+            faceEl.className = status.faceDetected ? 'w-2 h-2 rounded-full bg-green-500 animate-pulse' : 'w-2 h-2 rounded-full bg-red-500';
+            lipEl.className = status.lipMovementDetected ? 'w-2 h-2 rounded-full bg-green-500 animate-pulse' : 'w-2 h-2 rounded-full bg-red-500';
+        };
+    }
+
+    function checkCameraAvailability() {
+        if (skipFaceDetection) return;
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { faceDetectionEnabled = false; return; }
+        document.getElementById('face-detection-modal').classList.remove('hidden');
+    }
+
+    async function enableCamera() {
+        try {
+            cameraStream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }, audio: true 
+            });
+            const video = document.getElementById('camera-feed');
+            video.srcObject = cameraStream;
+            video.onloadedmetadata = () => {
+                video.play();
+                document.getElementById('camera-preview').classList.remove('hidden');
+                document.getElementById('face-detection-modal').classList.add('hidden');
+                document.getElementById('detection-status-pill').classList.remove('hidden');
+                if (faceDetector) faceDetector.startDetection();
+            };
+            startLipMovementMonitoring();
+        } catch (err) {
+            alert(_t.camera_fail + err.message);
+            skipCameraDetection();
+        }
+    }
+
+    function skipCameraDetection() {
+        skipFaceDetection = true; faceDetectionEnabled = false;
+        document.getElementById('face-detection-modal').classList.add('hidden');
+        document.getElementById('detection-status-pill').textContent = _t.skip_detect;
+    }
+
+    function startLipMovementMonitoring() {
+        if (detectionInterval) clearInterval(detectionInterval);
+        detectionInterval = setInterval(() => {
+            if (isRecording && faceDetectionEnabled && !skipFaceDetection) {
+                if (Date.now() - lastLipMovementTime > 3000) showLipWarning();
+            }
+        }, 1000);
+    }
+
+    function showLipWarning() {
+        if (!isRecording) return;
+        const w = document.getElementById('lip-warning');
+        w.classList.remove('hidden');
+        setTimeout(() => w.classList.add('hidden'), 3000);
+    }
+
+    async function loadNewExercise(level) {
+        recordAgain();
+        const queueStr = sessionStorage.getItem('challenge_queue');
+        if (queueStr) {
+            let queue = JSON.parse(queueStr);
+            if (queue.length > 0) {
+                currentExercise = queue.shift(); 
+                sessionStorage.setItem('challenge_queue', JSON.stringify(queue));
+                const badge = document.getElementById('difficulty-badge');
+                badge.innerText = "🏆 挑戰模式";
+                badge.className = "absolute top-6 left-6 bg-purple-100 text-purple-700 px-4 py-1 rounded-full font-black text-sm";
+                displayExercise(currentExercise);
+                return;
+            } else {
+                sessionStorage.removeItem('challenge_queue');
+                const dayId = sessionStorage.getItem('challenge_day_id');
+                const resultsStr = sessionStorage.getItem('challenge_results');
+                if (dayId && resultsStr) {
+                    let results = JSON.parse(resultsStr);
+                    let avgScore = results.length > 0 ? Math.round(results.reduce((a, b) => a + b.score, 0) / results.length) : 0;
+                    await fetch('/api/challenge/complete', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ day_id: parseInt(dayId), results: results, avg_score: avgScore })
+                    });
+                    sessionStorage.removeItem('challenge_day_id'); sessionStorage.removeItem('challenge_results');
+                }
+                alert("🎉 完成挑戰！");
+                window.location.href = '/challenges';
+                return;
+            }
+        }
+        try {
+            const response = await fetch(`/api/exercises/random?level=${level}`);
+            const data = await response.json();
+            currentExercise = data.error ? { word: "士多啤梨", ipa: "s iː t ɔː p ɛː l ei" } : data;
+            displayExercise(currentExercise);
+        } catch (e) { console.error(e); }
+    }
+
+    function displayExercise(exercise) {
+        document.getElementById('exercise-word').textContent = exercise.word || exercise.text || (exercise.pair ? exercise.pair.join(' vs ') : '練習');
+        let ipaText = 'IPA Unavailable';
+        if (exercise.ipa) ipaText = Array.isArray(exercise.ipa) ? `/${exercise.ipa.join(' / ')}/` : `/${exercise.ipa}/`;
+        document.getElementById('exercise-ipa').textContent = ipaText;
+        const img = document.getElementById('exercise-image');
+        if (exercise.image) {
+            img.src = `/static/images/${exercise.image}`;
+            document.getElementById('image-container').classList.remove('hidden');
+        } else {
+            document.getElementById('image-container').classList.add('hidden');
+        }
+    }
+
+    document.getElementById('record-btn').addEventListener('click', async function () {
+        if (!isRecording) startRecording(); else stopRecording();
+    });
+
+    async function startRecording() {
+        try {
+            let stream = (cameraStream && faceDetectionEnabled) ? cameraStream : await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            audioChunks = [];
+            mediaRecorder.ondataavailable = event => audioChunks.push(event.data);
+            mediaRecorder.onstop = processRecording;
+            mediaRecorder.start();
+            isRecording = true; lastLipMovementTime = Date.now(); 
+
+            const btn = document.getElementById('record-btn');
+            btn.classList.remove('bg-game-blue', 'border-blue-600');
+            btn.classList.add('bg-game-red', 'border-red-600', 'animate-pulse');
+            btn.innerHTML = '<i data-lucide="square" class="w-10 h-10"></i>';
+            document.getElementById('detection-status-pill').textContent = "錄音中...";
+            lucide.createIcons();
+        } catch (err) { alert(_t.record_error + err.message); }
+    }
+
+    function stopRecording() {
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+            mediaRecorder.stop(); isRecording = false;
+            const btn = document.getElementById('record-btn');
+            btn.classList.add('bg-gray-400', 'border-gray-500');
+            btn.innerHTML = '<div class="animate-spin w-8 h-8 border-4 border-white border-t-transparent rounded-full"></div>';
+            document.getElementById('lip-warning').classList.add('hidden');
+        }
+    }
+
+    async function processRecording() {
+        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+        const formData = new FormData();
+        formData.append('audio', audioBlob);
+
+        if (faceDetectionEnabled && !skipFaceDetection) {
+            formData.append('face_detected', faceDetected.toString());
+            formData.append('lip_movement_detected', lipMovementDetected.toString());
+        }
+
+        if (currentExercise && (currentExercise.word || currentExercise.text)) {
+            formData.append('target_word', currentExercise.word || currentExercise.text);
+            const targetIpa = Array.isArray(currentExercise.ipa) ? currentExercise.ipa[0] : currentExercise.ipa;
+            if (targetIpa) formData.append('target_ipa', targetIpa);
+        }
+
+        try {
+            const response = await fetch('/api/chat_process', { method: 'POST', body: formData });
+            const data = await response.json();
+            showResult(data.score || 0, data.humanPerception);
+            savePracticeResult(data.score || 0);
+        } catch (error) {
+            console.error(error); alert(_t.analysis_fail); recordAgain();
+        }
+    }
+
+    function showResult(score, feedback) {
+        const overlay = document.getElementById('result-overlay');
+        const scoreEl = document.getElementById('user-score');
+        const iconEl = document.getElementById('score-icon');
+        const feedbackEl = document.getElementById('ai-feedback');
+        
+        overlay.classList.remove('hidden');
+        scoreEl.textContent = score;
+        feedbackEl.textContent = feedback || _t.keep_going;
+        
+        const btn = document.getElementById('record-btn');
+        btn.classList.remove('bg-game-red', 'border-red-600', 'bg-gray-400', 'border-gray-500', 'animate-pulse');
+        btn.classList.add('bg-game-blue', 'border-blue-600');
+        btn.innerHTML = '<i data-lucide="mic" class="w-10 h-10"></i>';
+        document.getElementById('detection-status-pill').textContent = _t.ready;
+        lucide.createIcons();
+        
+        if(score >= 80) {
+            scoreEl.className = "text-6xl font-black mb-2 text-game-green";
+            iconEl.innerHTML = '<img src="https://img.icons8.com/emoji/96/star-struck.png" class="w-24 h-24 animate-bounce">';
+        } else if (score >= 50) {
+            scoreEl.className = "text-6xl font-black mb-2 text-game-yellow";
+            iconEl.innerHTML = '<img src="https://img.icons8.com/emoji/96/thinking-face.png" class="w-24 h-24">';
+        } else {
+            scoreEl.className = "text-6xl font-black mb-2 text-game-red";
+            iconEl.innerHTML = '<img src="https://img.icons8.com/emoji/96/disappointed-face.png" class="w-24 h-24">';
+        }
+    }
+
+    function recordAgain() { document.getElementById('result-overlay').classList.add('hidden'); }
+
+    async function savePracticeResult(score) {
+        if (!currentExercise) return;
+        const details = {
+            exercise: currentExercise,
+            face_meta: { enabled: faceDetectionEnabled && !skipFaceDetection, lip_movement: lipMovementDetected, timestamp: new Date().toISOString() }
+        };
+
+        try {
+            await fetch('/api/practice/submit', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ exercise_type: 'pronunciation', score: score, details: details })
+            });
+
+            const challengeResultsStr = sessionStorage.getItem('challenge_results');
+            if (challengeResultsStr) {
+                let results = JSON.parse(challengeResultsStr);
+                const existingIndex = results.findIndex(r => r.word === currentExercise.word);
+                if (existingIndex >= 0) results[existingIndex].score = score;
+                else results.push({ word: currentExercise.word, score: score });
+                sessionStorage.setItem('challenge_results', JSON.stringify(results));
+            }
+        } catch (e) { console.error(e); }
+    }
+
+    function changeDifficulty(level) {
+        currentDifficulty = level;
+        document.getElementById('difficulty-badge').innerText = _t[level] || level;
+        loadNewExercise(level);
+    }
+    
+    function showExerciseInfo() { alert(currentExercise.description || "練習讀出卡片上的字！"); }
+
+    window.addEventListener('beforeunload', () => {
+        if (cameraStream) cameraStream.getTracks().forEach(track => track.stop());
+        if (detectionInterval) clearInterval(detectionInterval);
+        if (faceDetector) faceDetector.stopDetection();
+    });
+
+    lucide.createIcons();
+</script>
+{% endblock %}

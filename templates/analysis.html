@@ -1,0 +1,403 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="flex flex-col h-[calc(100vh-2rem)] max-w-4xl mx-auto rounded-3xl overflow-hidden relative border-4 border-gray-200 bg-sky-100">
+
+    <!-- Background Clouds -->
+    <div class="absolute top-10 left-10 text-white/40"><i data-lucide="cloud" class="w-16 h-16 fill-current"></i></div>
+    <div class="absolute top-20 right-20 text-white/40"><i data-lucide="cloud" class="w-12 h-12 fill-current"></i></div>
+
+    <!-- Intro Box 1: Welcome -->
+    <div id="intro-box-1" class="hidden absolute top-4 left-4 right-4 z-50 bg-white/95 backdrop-blur rounded-2xl p-6 shadow-xl border-4 border-game-blue animate-bounce-slow">
+        <div class="flex justify-between items-start">
+            <div class="flex gap-4">
+                <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center shrink-0">
+                    <img src="https://img.icons8.com/color/96/panda.png" class="w-12 h-12">
+                </div>
+                <div>
+                    <h3 class="text-xl font-black text-game-blue mb-2">{{ t('analysis_welcome_title') }}</h3>
+                    <p class="text-gray-600 font-bold leading-relaxed">{{ t('analysis_welcome_desc') }}</p>
+                </div>
+            </div>
+            <button onclick="closeIntro(1)" class="text-gray-400 hover:text-red-500 p-2"><i data-lucide="x" class="w-6 h-6"></i></button>
+        </div>
+    </div>
+
+    <!-- Intro Box 2: Session 1 Intro -->
+    <div id="intro-box-2" class="hidden absolute top-4 left-4 right-4 z-50 bg-white/95 backdrop-blur rounded-2xl p-6 shadow-xl border-4 border-game-green">
+        <div class="flex justify-between items-start">
+            <div class="flex gap-4">
+                <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center shrink-0">
+                    <i data-lucide="mic" class="w-8 h-8 text-green-600"></i>
+                </div>
+                <div>
+                    <h3 class="text-xl font-black text-game-green mb-2">{{ t('analysis_session1_title') }}</h3>
+                    <p class="text-gray-600 font-bold leading-relaxed">{{ t('analysis_session1_desc') }}</p>
+                </div>
+            </div>
+            <button onclick="closeIntro(2)" class="text-gray-400 hover:text-red-500 p-2"><i data-lucide="x" class="w-6 h-6"></i></button>
+        </div>
+        <div class="mt-4 text-right">
+            <button onclick="closeIntro(2)" class="bg-game-green text-white px-6 py-2 rounded-xl font-black border-b-4 border-green-600 active:border-b-0 active:mt-1">{{ t('analysis_start_test') }}</button>
+        </div>
+    </div>
+
+    <!-- Intro Box 3: Session 2 Intro -->
+    <div id="intro-box-3" class="hidden absolute top-4 left-4 right-4 z-50 bg-white/95 backdrop-blur rounded-2xl p-6 shadow-xl border-4 border-game-yellow">
+        <div class="flex justify-between items-start">
+            <div class="flex gap-4">
+                <div class="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center shrink-0">
+                    <i data-lucide="message-circle" class="w-8 h-8 text-yellow-600"></i>
+                </div>
+                <div>
+                    <h3 class="text-xl font-black text-game-yellow mb-2">{{ t('analysis_session2_title') }}</h3>
+                    <p class="text-gray-600 font-bold leading-relaxed">{{ t('analysis_session2_desc') }}</p>
+                </div>
+            </div>
+            <button onclick="closeIntro(3)" class="text-gray-400 hover:text-red-500 p-2"><i data-lucide="x" class="w-6 h-6"></i></button>
+        </div>
+        <div class="mt-4 text-right">
+            <button onclick="closeIntro(3)" class="bg-game-yellow text-white px-6 py-2 rounded-xl font-black border-b-4 border-yellow-600 active:border-b-0 active:mt-1">{{ t('analysis_start_chat') }}</button>
+        </div>
+    </div>
+
+    <!-- Header: Status Bar -->
+    <div class="p-4 flex justify-between items-center z-10">
+        <div class="bg-white/80 backdrop-blur px-4 py-2 rounded-2xl border-2 border-white shadow-sm flex items-center gap-3 w-full max-w-md">
+            <div id="phase-icon" class="text-game-green">
+                <i data-lucide="book-open" class="w-6 h-6"></i>
+            </div>
+            <div class="flex-1">
+                <h2 id="phase-title" class="font-black text-gray-700 text-sm mb-1">{{ t('analysis_preparing') }}</h2>
+                <div class="h-3 w-full bg-gray-200 rounded-full overflow-hidden">
+                    <div id="progress-bar-fill" class="h-full bg-game-green w-0 transition-all duration-500"></div>
+                </div>
+            </div>
+            <div id="progress-text" class="font-black text-gray-500 text-xs">0/0</div>
+        </div>
+    </div>
+
+    <!-- Main Game Scene -->
+    <div id="main-display-area" class="flex-1 flex flex-col justify-end items-center relative pb-8">
+        <!-- PANDA AVATAR AREA -->
+        <div class="relative z-10 flex flex-col items-center animate-bounce-slow">
+            <div id="panda-bubble" class="bg-white border-4 border-gray-800 rounded-3xl p-6 mb-4 relative max-w-md shadow-xl transform transition-all duration-300 min-w-[300px]">
+                <div class="absolute -bottom-4 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[15px] border-l-transparent border-r-[15px] border-r-transparent border-t-[15px] border-t-gray-800"></div>
+                <div class="absolute -bottom-[11px] left-1/2 -translate-x-1/2 w-0 h-0 border-l-[11px] border-l-transparent border-r-[11px] border-r-transparent border-t-[11px] border-t-white"></div>
+
+                <div id="target-text-container" class="text-center">
+                    <p class="text-gray-400 font-bold text-sm mb-2 uppercase tracking-widest">{{ t('analysis_follow_me') }}</p>
+                    <h3 id="target-text-display" class="text-3xl font-black text-gray-800 leading-tight mb-2">{{ t('analysis_loading') }}</h3>
+                    <p id="target-jyutping-display" class="text-game-blue font-bold font-mono bg-blue-50 inline-block px-3 py-1 rounded-lg"></p>
+                </div>
+
+                <div id="conversation-content" class="hidden text-center">
+                    <p class="text-orange-500 font-bold text-sm mb-2 uppercase">{{ t('analysis_use_words') }}</p>
+                    <div id="mission-words-container" class="flex flex-wrap justify-center gap-2 mb-2"></div>
+                    <p id="bot-prompt-text" class="text-xl font-bold text-gray-700 mt-2">...</p>
+                </div>
+            </div>
+            <img src="https://img.icons8.com/color/240/panda.png" alt="Panda" class="w-48 h-48 drop-shadow-2xl">
+        </div>
+    </div>
+
+    <!-- Controls Area -->
+    <div class="bg-white p-6 border-t-4 border-gray-200 rounded-t-3xl z-20 shadow-[0_-10px_40px_rgba(0,0,0,0.1)]">
+        <div class="max-w-xl mx-auto flex items-center justify-between gap-4">
+            <button id="skip-btn" onclick="skipReadingTask()" class="text-gray-400 font-bold hover:text-gray-600 p-4">
+                {{ t('analysis_skip') }} <i data-lucide="skip-forward" class="inline w-4 h-4"></i>
+            </button>
+            <button id="record-btn" disabled class="group relative w-24 h-24 rounded-full bg-gray-200 border-b-8 border-gray-300 transition-all flex items-center justify-center -mt-12 shadow-xl cursor-not-allowed">
+                <div class="absolute inset-0 bg-white/20 rounded-full"></div>
+                <i data-lucide="mic" class="w-10 h-10 text-white transition-transform group-hover:scale-110"></i>
+            </button>
+            <div id="status-text" class="text-gray-400 font-bold w-20 text-center text-sm">{{ t('analysis_preparing') }}</div>
+        </div>
+        <div id="messages-container" class="mt-4 max-h-32 overflow-y-auto space-y-2 p-2 bg-gray-50 rounded-xl border-2 border-gray-100 opacity-90 hover:opacity-100 transition-opacity"></div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="processing-indicator" class="hidden absolute inset-0 z-50 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center text-white">
+        <div class="animate-spin w-16 h-16 border-8 border-white border-t-transparent rounded-full mb-4"></div>
+        <span class="font-black text-2xl tracking-wider">{{ t('analysis_panda_listening') }}</span>
+    </div>
+
+    <!-- Initial Loading -->
+    <div id="init-loading" class="absolute inset-0 bg-game-bg z-50 flex flex-col items-center justify-center">
+        <img src="https://img.icons8.com/color/96/panda.png" class="animate-bounce mb-4">
+        <p class="text-game-blue font-black text-xl">{{ t('analysis_preparing_q') }}</p>
+    </div>
+</div>
+
+<!-- Report Modal -->
+<div id="report-modal" class="hidden fixed inset-0 bg-black/90 z-[60] flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden relative shadow-2xl">
+        <div class="p-6 border-b-2 border-gray-100 bg-gray-50 flex justify-between items-center shrink-0">
+            <div>
+                <h2 class="text-2xl font-black text-gray-800 flex items-center gap-2">
+                    <i data-lucide="sparkles" class="text-yellow-500"></i> {{ t('analysis_report_done') }}
+                </h2>
+                <p class="text-gray-500 font-bold text-sm">{{ t('analysis_report_desc') }}</p>
+            </div>
+            <button onclick="window.location.href='/reports'" class="text-gray-400 hover:text-gray-600 transition-colors"><i data-lucide="x" class="w-8 h-8"></i></button>
+        </div>
+        <div id="report-content-area" class="flex-1 overflow-y-auto p-8 prose max-w-none bg-white">
+            <div class="flex flex-col items-center justify-center h-full">
+                <div class="animate-spin w-12 h-12 border-4 border-game-blue border-t-transparent rounded-full mb-4"></div>
+                <p class="font-bold text-gray-400">{{ t('analysis_generating') }}</p>
+            </div>
+        </div>
+        <div class="p-6 border-t-2 border-gray-100 flex justify-center gap-4 bg-gray-50 shrink-0">
+            <button onclick="window.location.href='/reports'" class="bg-game-blue text-white px-8 py-4 rounded-xl font-black text-lg border-b-4 border-blue-600 hover:bg-blue-400 transition-all active:border-b-0 active:mt-1">{{ t('analysis_go_reports') }}</button>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+    const _t = {
+        phase1: {{ t('analysis_phase1')|tojson }},
+        phase2: {{ t('analysis_phase2')|tojson }},
+        hold_to_speak: {{ t('analysis_press_to_speak')|tojson }},
+        please_wait: {{ t('analysis_please_wait')|tojson }},
+        recording: {{ t('analysis_recording')|tojson }},
+        you_said: {{ t('analysis_you_said')|tojson }},
+        could_not_hear: {{ t('analysis_could_not_hear')|tojson }},
+        network_error: {{ t('analysis_network_error')|tojson }},
+        error_title: {{ t('analysis_error_title')|tojson }},
+        error_hint: {{ t('analysis_error_hint')|tojson }},
+    };
+
+    var readingTasks = [];
+    var topics = [];
+    var state = { phase: 1, readingIndex: 0, conversationCount: 0, maxConversation: 3, currentTopic: null, currentMissionWords: [], readingData: [], conversationData: [], chatHistory: "", isRecording: false };
+    var mediaRecorder;
+    var audioChunks = [];
+
+    const ui = {
+        phaseTitle: document.getElementById('phase-title'),
+        progressBar: document.getElementById('progress-bar-fill'),
+        progressText: document.getElementById('progress-text'),
+        targetText: document.getElementById('target-text-display'),
+        jyutpingText: document.getElementById('target-jyutping-display'),
+        missionContainer: document.getElementById('mission-words-container'),
+        botPrompt: document.getElementById('bot-prompt-text'),
+        recordBtn: document.getElementById('record-btn'),
+        statusText: document.getElementById('status-text'),
+        messages: document.getElementById('messages-container'),
+        loading: document.getElementById('processing-indicator'),
+        initLoading: document.getElementById('init-loading'),
+        conversationContent: document.getElementById('conversation-content'),
+        targetContainer: document.getElementById('target-text-container'),
+        reportModal: document.getElementById('report-modal'),
+        reportContent: document.getElementById('report-content-area')
+    };
+
+    async function init() {
+        try {
+            const res = await fetch('/api/analysis/init_data');
+            const data = await res.json();
+            if (data.readingTasks) {
+                readingTasks = data.readingTasks;
+                topics = data.topics;
+                ui.initLoading.classList.add('hidden');
+                document.getElementById('intro-box-1').classList.remove('hidden');
+            }
+        } catch (e) { console.error(e); }
+        lucide.createIcons();
+    }
+
+    function closeIntro(id) {
+        document.getElementById(`intro-box-${id}`).classList.add('hidden');
+
+        if (id === 1) {
+            setTimeout(() => document.getElementById('intro-box-2').classList.remove('hidden'), 300);
+        } else if (id === 2) {
+            enableRecordBtn();
+            loadReadingTask();
+        } else if (id === 3) {
+            startPhase2();
+        }
+    }
+
+    function loadReadingTask() {
+        if (state.readingIndex >= readingTasks.length) {
+            document.getElementById('intro-box-3').classList.remove('hidden');
+            disableRecordBtn();
+            return;
+        }
+
+        const task = readingTasks[state.readingIndex];
+        ui.targetText.innerText = task.text;
+        ui.jyutpingText.innerText = task.jyutping;
+
+        updateProgress(state.readingIndex + 1, readingTasks.length);
+        ui.phaseTitle.innerText = _t.phase1;
+    }
+
+    function updateProgress(current, total) {
+        const percent = (current / total) * 100;
+        ui.progressBar.style.width = `${percent}%`;
+        ui.progressText.innerText = `${current}/${total}`;
+    }
+
+    function skipReadingTask() { state.readingIndex++; loadReadingTask(); }
+
+    function startPhase2() {
+        state.phase = 2;
+        const randomTopic = topics[Math.floor(Math.random() * topics.length)];
+        state.currentTopic = randomTopic;
+        state.currentMissionWords = randomTopic.startWords;
+        state.chatHistory = `Bot: ${randomTopic.intro}`;
+
+        ui.targetContainer.classList.add('hidden');
+        ui.conversationContent.classList.remove('hidden');
+        ui.phaseTitle.innerText = _t.phase2;
+        document.getElementById('panda-bubble').classList.add('border-orange-500');
+
+        enableRecordBtn();
+        updateMissionUI(randomTopic.intro);
+        updateProgress(0, state.maxConversation);
+    }
+
+    function updateMissionUI(botReply) {
+        updateProgress(state.conversationCount, state.maxConversation);
+
+        ui.botPrompt.innerText = botReply;
+        ui.missionContainer.innerHTML = '';
+        state.currentMissionWords.forEach(word => {
+            const span = document.createElement('span');
+            span.className = "bg-orange-100 text-orange-600 px-3 py-1 rounded-full font-bold text-sm border-2 border-orange-200";
+            span.innerText = word;
+            ui.missionContainer.appendChild(span);
+        });
+    }
+
+    function enableRecordBtn() {
+        ui.recordBtn.disabled = false;
+        ui.recordBtn.classList.remove('bg-gray-200', 'cursor-not-allowed', 'hidden');
+        ui.recordBtn.classList.add('bg-game-red', 'border-red-700', 'cursor-pointer', 'hover:bg-red-500');
+        ui.statusText.innerText = _t.hold_to_speak;
+        ui.statusText.classList.remove('text-gray-400'); ui.statusText.classList.add('text-game-red');
+    }
+
+    function disableRecordBtn() {
+        ui.recordBtn.disabled = true;
+        ui.recordBtn.classList.add('bg-gray-200', 'cursor-not-allowed');
+        ui.recordBtn.classList.remove('bg-game-red', 'border-red-700', 'cursor-pointer');
+        ui.statusText.innerText = _t.please_wait;
+    }
+
+    ui.recordBtn.addEventListener('click', () => { if (!state.isRecording) startRecording(); else stopRecording(); });
+
+    async function startRecording() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            audioChunks = [];
+            mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+            mediaRecorder.onstop = processAudio;
+            mediaRecorder.start();
+            state.isRecording = true;
+            ui.recordBtn.classList.remove('bg-game-red', 'border-red-700');
+            ui.recordBtn.classList.add('bg-white', 'border-gray-200', 'animate-pulse');
+            ui.recordBtn.innerHTML = '<i data-lucide="square" class="w-10 h-10 text-red-500 fill-current"></i>';
+            ui.statusText.innerText = _t.recording;
+        } catch (err) { alert("Mic Error: " + err); }
+    }
+
+    function stopRecording() {
+        if (mediaRecorder) {
+            mediaRecorder.stop();
+            state.isRecording = false;
+            ui.loading.classList.remove('hidden');
+            ui.recordBtn.classList.remove('bg-white', 'border-gray-200', 'animate-pulse');
+            ui.recordBtn.classList.add('bg-game-red', 'border-red-700');
+            ui.recordBtn.innerHTML = '<i data-lucide="mic" class="w-10 h-10 text-white"></i>';
+        }
+    }
+
+    async function processAudio() {
+        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+        const formData = new FormData();
+        formData.append('audio', audioBlob);
+
+        try {
+            if (state.phase === 1) {
+                const task = readingTasks[state.readingIndex];
+                formData.append('target_word', task.text);
+                formData.append('target_ipa', task.jyutping);
+
+                const res = await fetch('/api/chat_process', { method: 'POST', body: formData });
+                const data = await res.json();
+
+                const userSaidText = data.transcript && data.transcript.trim() !== "" ? data.transcript : _t.could_not_hear;
+                const displayScore = data.accuracy_percent || data.score || 0;
+
+                state.readingData.push({
+                    target: task.text, target_ipa: task.jyutping,
+                    transcript: userSaidText, accuracy_percent: displayScore, score: displayScore
+                });
+
+                appendMessage(userSaidText, displayScore);
+                state.readingIndex++;
+                setTimeout(() => { ui.loading.classList.add('hidden'); loadReadingTask(); }, 1500);
+
+            } else {
+                formData.append('topic', state.currentTopic.name);
+                formData.append('history', state.chatHistory);
+                formData.append('current_mission_words', JSON.stringify(state.currentMissionWords));
+
+                const res = await fetch('/api/mission_chat_process', { method: 'POST', body: formData });
+                const data = await res.json();
+
+                state.conversationData.push({
+                    turn: state.conversationCount + 1, required_words: state.currentMissionWords,
+                    user_transcript: data.transcript, success: data.mission_success, bot_reply: data.bot_reply
+                });
+
+                appendMessage(data.transcript, null);
+                state.chatHistory += `\nUser: ${data.transcript}\nBot: ${data.bot_reply}`;
+                state.currentMissionWords = data.next_mission_words || [];
+                state.conversationCount++;
+
+                setTimeout(() => {
+                    ui.loading.classList.add('hidden');
+                    if (state.conversationCount >= state.maxConversation) finishAnalysis();
+                    else updateMissionUI(data.bot_reply);
+                }, 1000);
+            }
+        } catch (err) {
+            console.error(err);
+            alert(_t.network_error); ui.loading.classList.add('hidden');
+        }
+    }
+
+    function appendMessage(text, score) {
+        const div = document.createElement('div');
+        div.className = "bg-white p-3 rounded-xl mb-2 shadow-sm flex justify-between items-center border-l-4 border-game-blue";
+        let scoreHtml = score !== null ? `<span class="${score>=80?'text-green-500':'text-red-500'} font-black text-lg">${score}%</span>` : '';
+        div.innerHTML = `<div class="flex-1 pr-2"><span class="text-xs font-bold text-gray-400 block mb-1">${_t.you_said}</span><span class="text-gray-800 font-medium truncate block max-w-[200px]">${text}</span></div>${scoreHtml}`;
+        ui.messages.prepend(div);
+    }
+
+    async function finishAnalysis() {
+        ui.reportModal.classList.remove('hidden');
+
+        try {
+            const payload = { reading_data: state.readingData, conversation_data: state.conversationData };
+            const res = await fetch('/api/submit_analysis_results', {
+                method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+
+            if (data.success && data.report) {
+                ui.reportContent.innerHTML = marked.parse(data.report);
+            } else { throw new Error("Report generation failed"); }
+        } catch (err) {
+            ui.reportContent.innerHTML = `<div class="text-red-500 font-bold text-center mt-12"><p class="text-xl">${_t.error_title}</p><p>${_t.error_hint}</p></div>`;
+        }
+    }
+    init();
+</script>
+{% endblock %}

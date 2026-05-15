@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto space-y-8">
+
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+            <h1 class="text-3xl font-black text-gray-800">{{ t('badges_title') }}</h1>
+            <p class="text-gray-500 font-bold mt-1">{{ t('badges_subtitle') }}</p>
+        </div>
+        <div class="flex gap-3">
+            <div class="bg-game-yellow/20 border-2 border-game-yellow rounded-2xl px-5 py-3 text-center">
+                <p class="text-3xl font-black text-yellow-600">{{ stats.total_badges }}</p>
+                <p class="text-xs font-bold text-yellow-600">{{ t('badges_earned') }}</p>
+            </div>
+            <div class="bg-game-blue/10 border-2 border-game-blue rounded-2xl px-5 py-3 text-center">
+                <p class="text-3xl font-black text-game-blue">{{ streak.current_streak }}</p>
+                <p class="text-xs font-bold text-game-blue">{{ t('badges_streak') }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Row -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="bg-white rounded-2xl border-2 border-gray-200 p-4 text-center shadow-sm">
+            <div class="text-3xl mb-1">🔥</div>
+            <p class="text-2xl font-black text-orange-500">{{ streak.current_streak }}</p>
+            <p class="text-xs font-bold text-gray-500">{{ t('badges_consecutive_login') }}</p>
+            <p class="text-xs text-gray-400 mt-1">{{ t('badges_longest') }} {{ streak.longest_streak }} {{ t('badges_days') }}</p>
+        </div>
+        <div class="bg-white rounded-2xl border-2 border-gray-200 p-4 text-center shadow-sm">
+            <div class="text-3xl mb-1">📝</div>
+            <p class="text-2xl font-black text-game-blue">{{ achievement_progress.practice_count|default(0) }}</p>
+            <p class="text-xs font-bold text-gray-500">{{ t('badges_practice_count') }}</p>
+            <p class="text-xs text-gray-400 mt-1">{{ t('badges_target_50') }}</p>
+        </div>
+        <div class="bg-white rounded-2xl border-2 border-gray-200 p-4 text-center shadow-sm">
+            <div class="text-3xl mb-1">💯</div>
+            <p class="text-2xl font-black text-game-green">{{ achievement_progress.perfect_score|default(0) }}</p>
+            <p class="text-xs font-bold text-gray-500">{{ t('badges_perfect_count') }}</p>
+            <p class="text-xs text-gray-400 mt-1">{{ t('badges_target_10') }}</p>
+        </div>
+        <div class="bg-white rounded-2xl border-2 border-gray-200 p-4 text-center shadow-sm">
+            <div class="text-3xl mb-1">🎯</div>
+            <p class="text-2xl font-black text-game-red">{{ achievement_progress.challenge_complete|default(0) }}</p>
+            <p class="text-xs font-bold text-gray-500">{{ t('badges_challenge_count') }}</p>
+            <p class="text-xs text-gray-400 mt-1">{{ t('badges_target_30') }}</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+        <!-- Left: Badge Collection -->
+        <div class="lg:col-span-2 space-y-6">
+
+            <!-- Category Filter Tabs -->
+            <div class="flex flex-wrap gap-2">
+                {% set categories = [
+                    ('all', t('badges_filter_all'), '🏅'),
+                    ('practice', t('badges_filter_practice'), '📝'),
+                    ('performance', t('badges_filter_performance'), '💯'),
+                    ('streak', t('badges_filter_streak'), '🔥'),
+                    ('improvement', t('badges_filter_improvement'), '📈'),
+                    ('challenge', t('badges_filter_challenge'), '🎯')
+                ] %}
+                {% for cat_id, cat_name, cat_icon in categories %}
+                <button onclick="filterBadges('{{ cat_id }}')"
+                    id="tab-{{ cat_id }}"
+                    class="tab-btn px-4 py-2 rounded-xl font-bold text-sm transition-all border-2
+                        {% if loop.first %}bg-game-blue text-white border-blue-600{% else %}bg-white text-gray-500 border-gray-200 hover:border-gray-300{% endif %}">
+                    {{ cat_icon }} {{ cat_name }}
+                </button>
+                {% endfor %}
+            </div>
+
+            <!-- Badge Grid -->
+            <div class="bg-white rounded-3xl border-2 border-gray-200 p-6 shadow-sm min-h-48">
+                {% if badges %}
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-4" id="badge-grid">
+                    {% for badge in badges %}
+                    <div class="badge-item cursor-pointer group" data-category="{{ badge.badge_category }}"
+                         onclick="showBadgeDetail('{{ badge.badge_icon }}', '{{ badge.badge_name }}', '{{ badge.badge_description }}', '{{ badge.badge_color }}', '{{ badge.badge_category }}', '{{ badge.awarded_date_formatted }}')">
+                        <div class="relative rounded-2xl border-2 border-gray-100 p-4 text-center transition-all duration-200 group-hover:border-game-yellow group-hover:shadow-md group-hover:-translate-y-1">
+                            <div class="w-16 h-16 mx-auto mb-3 rounded-full flex items-center justify-center text-3xl
+                                {% if badge.badge_color == 'gold' %}bg-yellow-100 ring-2 ring-yellow-300
+                                {% elif badge.badge_color == 'silver' %}bg-gray-100 ring-2 ring-gray-300
+                                {% elif badge.badge_color == 'diamond' %}bg-cyan-100 ring-2 ring-cyan-300
+                                {% elif badge.badge_color == 'platinum' %}bg-purple-100 ring-2 ring-purple-300
+                                {% else %}bg-orange-100 ring-2 ring-orange-300{% endif %}">
+                                {{ badge.badge_icon }}
+                            </div>
+                            <p class="font-black text-gray-800 text-sm leading-tight">{{ badge.badge_name }}</p>
+                            <p class="text-xs text-gray-400 font-bold mt-1">{{ badge.awarded_date_formatted }}</p>
+                            <span class="inline-block mt-2 text-xs font-black px-2 py-0.5 rounded-full
+                                {% if badge.badge_color == 'gold' %}bg-yellow-100 text-yellow-700
+                                {% elif badge.badge_color == 'silver' %}bg-gray-100 text-gray-600
+                                {% elif badge.badge_color == 'diamond' %}bg-cyan-100 text-cyan-700
+                                {% elif badge.badge_color == 'platinum' %}bg-purple-100 text-purple-700
+                                {% else %}bg-orange-100 text-orange-700{% endif %}">
+                                {{ badge.badge_color | upper }}
+                            </span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <p id="no-filter-result" class="text-center text-gray-400 font-bold py-8 hidden">{{ t('badges_no_filter') }}</p>
+                {% else %}
+                <div class="text-center py-16">
+                    <div class="text-6xl mb-4">🏆</div>
+                    <h3 class="font-black text-gray-700 text-xl mb-2">{{ t('badges_none_title') }}</h3>
+                    <p class="text-gray-400 font-bold mb-6">{{ t('badges_none_desc') }}</p>
+                    <a href="/therapy" class="btn-game bg-game-blue text-white px-6 py-3 rounded-xl font-black border-b-4 border-blue-700 inline-block">
+                        {{ t('badges_start_practice') }}
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Right: Progress & Next Goals -->
+        <div class="space-y-6">
+
+            <!-- Next Targets -->
+            <div class="bg-white rounded-3xl border-2 border-gray-200 p-6 shadow-sm">
+                <h3 class="font-black text-gray-800 text-lg mb-4 flex items-center gap-2">
+                    <i data-lucide="target" class="text-game-red w-5 h-5"></i> {{ t('badges_next_goal') }}
+                </h3>
+                {% if next_badges %}
+                <div class="space-y-4">
+                    {% for next in next_badges %}
+                    <div class="bg-gray-50 rounded-2xl p-4 border border-gray-100">
+                        <div class="flex items-center gap-3 mb-3">
+                            <span class="text-2xl">{{ next.icon }}</span>
+                            <div class="flex-1 min-w-0">
+                                <p class="font-black text-gray-800 text-sm">{{ next.name }}</p>
+                                <p class="text-xs text-gray-500 font-bold truncate">{{ next.description }}</p>
+                            </div>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2.5 mb-1">
+                            <div class="bg-game-green h-2.5 rounded-full transition-all duration-700"
+                                 style="width: {{ next.progress }}%"></div>
+                        </div>
+                        <p class="text-xs text-gray-400 font-bold text-right">{{ next.current }}/{{ next.target }}</p>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-gray-400 font-bold text-center py-4">{{ t('badges_keep_going') }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Achievement Progress -->
+            <div class="bg-white rounded-3xl border-2 border-gray-200 p-6 shadow-sm">
+                <h3 class="font-black text-gray-800 text-lg mb-4 flex items-center gap-2">
+                    <i data-lucide="bar-chart-2" class="text-game-blue w-5 h-5"></i> {{ t('badges_achievement') }}
+                </h3>
+                {% if achievement_progress_details %}
+                <div class="space-y-4">
+                    {% for prog in achievement_progress_details %}
+                    {% set percentage = [(prog.current_value / prog.target_value * 100) if prog.target_value > 0 else 0, 100] | min | int %}
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-sm font-bold text-gray-700">
+                                {% if prog.achievement_code == 'practice_count' %}{{ t('badges_ach_practice') }}
+                                {% elif prog.achievement_code == 'perfect_score' %}{{ t('badges_ach_perfect') }}
+                                {% elif prog.achievement_code == 'streak_days' %}{{ t('badges_ach_streak') }}
+                                {% elif prog.achievement_code == 'mistake_master' %}{{ t('badges_ach_mistake') }}
+                                {% elif prog.achievement_code == 'challenge_complete' %}{{ t('badges_ach_challenge') }}
+                                {% else %}{{ prog.achievement_code }}
+                                {% endif %}
+                            </span>
+                            <span class="text-xs font-black text-game-blue">{{ prog.current_value }}/{{ prog.target_value }}</span>
+                        </div>
+                        <div class="w-full bg-gray-100 rounded-full h-2">
+                            <div class="bg-game-blue h-2 rounded-full transition-all duration-700"
+                                 style="width: {{ percentage }}%"></div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-gray-400 font-bold text-center py-4">{{ t('badges_no_progress') }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Badge Detail Popup -->
+<div id="badge-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4" onclick="closeBadgeModal(event)">
+    <div class="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl relative" onclick="event.stopPropagation()">
+        <button onclick="closeBadgeModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+            <i data-lucide="x" class="w-6 h-6"></i>
+        </button>
+        <div id="modal-icon" class="w-24 h-24 mx-auto mb-4 rounded-full flex items-center justify-center text-5xl"></div>
+        <h2 id="modal-name" class="font-black text-gray-800 text-2xl mb-2"></h2>
+        <span id="modal-category" class="inline-block px-3 py-1 rounded-full text-xs font-black mb-3"></span>
+        <p id="modal-desc" class="text-gray-500 font-bold mb-4"></p>
+        <div class="bg-gray-50 rounded-2xl px-4 py-3">
+            <p class="text-sm text-gray-400 font-bold">{{ t('badges_earned_on') }} <span id="modal-date" class="text-gray-700 font-black"></span></p>
+        </div>
+    </div>
+</div>
+
+<script>
+lucide.createIcons();
+
+const categoryColors = {
+    practice:    { bg: 'bg-blue-100',   text: 'text-blue-700',   label: {{ t('badges_cat_practice')|tojson }} },
+    performance: { bg: 'bg-purple-100', text: 'text-purple-700', label: {{ t('badges_cat_performance')|tojson }} },
+    streak:      { bg: 'bg-orange-100', text: 'text-orange-700', label: {{ t('badges_cat_streak')|tojson }} },
+    improvement: { bg: 'bg-green-100',  text: 'text-green-700',  label: {{ t('badges_cat_improvement')|tojson }} },
+    challenge:   { bg: 'bg-red-100',    text: 'text-red-700',    label: {{ t('badges_cat_challenge')|tojson }} },
+};
+
+const rarityColors = {
+    gold:     { bg: 'bg-yellow-100', ring: 'ring-yellow-300' },
+    silver:   { bg: 'bg-gray-100',   ring: 'ring-gray-300' },
+    diamond:  { bg: 'bg-cyan-100',   ring: 'ring-cyan-300' },
+    platinum: { bg: 'bg-purple-100', ring: 'ring-purple-300' },
+    bronze:   { bg: 'bg-orange-100', ring: 'ring-orange-300' },
+};
+
+function filterBadges(category) {
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('bg-game-blue', 'text-white', 'border-blue-600');
+        btn.classList.add('bg-white', 'text-gray-500', 'border-gray-200');
+    });
+    const activeTab = document.getElementById('tab-' + category);
+    if (activeTab) {
+        activeTab.classList.remove('bg-white', 'text-gray-500', 'border-gray-200');
+        activeTab.classList.add('bg-game-blue', 'text-white', 'border-blue-600');
+    }
+
+    const items = document.querySelectorAll('.badge-item');
+    let visibleCount = 0;
+    items.forEach(item => {
+        const match = category === 'all' || item.dataset.category === category;
+        item.style.display = match ? '' : 'none';
+        if (match) visibleCount++;
+    });
+
+    const noResult = document.getElementById('no-filter-result');
+    if (noResult) noResult.classList.toggle('hidden', visibleCount > 0);
+}
+
+function showBadgeDetail(icon, name, desc, color, category, date) {
+    const modal = document.getElementById('badge-modal');
+    const rarity = rarityColors[color] || rarityColors.bronze;
+    const cat = categoryColors[category] || { bg: 'bg-gray-100', text: 'text-gray-700', label: category };
+
+    document.getElementById('modal-icon').className = `w-24 h-24 mx-auto mb-4 rounded-full flex items-center justify-center text-5xl ring-4 ${rarity.bg} ${rarity.ring}`;
+    document.getElementById('modal-icon').textContent = icon;
+    document.getElementById('modal-name').textContent = name;
+    document.getElementById('modal-desc').textContent = desc;
+    document.getElementById('modal-date').textContent = date;
+
+    const catEl = document.getElementById('modal-category');
+    catEl.className = `inline-block px-3 py-1 rounded-full text-xs font-black mb-3 ${cat.bg} ${cat.text}`;
+    catEl.textContent = cat.label;
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function closeBadgeModal(event) {
+    const modal = document.getElementById('badge-modal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    lucide.createIcons();
+}
+
+document.addEventListener('DOMContentLoaded', () => lucide.createIcons());
+</script>
+{% endblock %}

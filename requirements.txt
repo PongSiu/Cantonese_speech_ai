@@ -1,0 +1,15 @@
+flask
+flask-cors
+google-genai
+python-dotenv
+werkzeug
+requests
+azure-cognitiveservices-speech
+azure-ai-textanalytics
+pydub
+ToJyutping
+
+# audioop-lts  # Python 3.10 - commented out, not required
+
+# Python 3.13: audioop was removed, install audioop-lts as replacement
+audioop-lts  # Python 3.13 only

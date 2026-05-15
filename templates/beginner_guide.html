@@ -1,0 +1,424 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-6 pb-10">
+
+    <!-- 返回儀表板按鈕 -->
+    <div class="flex justify-between items-center mb-4">
+        <a href="{{ url_for('dashboard') }}" class="btn-game bg-gray-200 text-gray-600 px-4 py-2 rounded-xl font-bold border-b-4 border-gray-300 flex items-center gap-2 text-sm">
+            <i data-lucide="arrow-left" class="w-4 h-4"></i>
+            {{ t('guide_back') }}
+        </a>
+        <div class="bg-game-yellow/20 px-4 py-2 rounded-full">
+            <span class="text-game-yellow font-black text-sm">{{ t('guide_new_user') }}</span>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <div class="text-center mb-8">
+        <div class="inline-block bg-game-purple text-white px-8 py-4 rounded-full font-black text-3xl mb-6 border-b-8 border-purple-600 shadow-lg transform hover:scale-105 transition-transform">
+            <i data-lucide="book-open" class="inline w-8 h-8 mr-2"></i>
+            {{ t('guide_title') }}
+        </div>
+        <h1 class="text-4xl font-black text-gray-800 mb-3">{{ t('guide_welcome') }}</h1>
+        <p class="text-gray-500 font-bold text-xl">{{ t('guide_intro') }}</p>
+
+        <!-- 熊貓吉祥物 -->
+        <div class="mt-6 flex justify-center">
+            <div class="relative">
+                <img src="https://img.icons8.com/color/96/panda.png" class="w-24 h-24 animate-bounce-slow">
+                <div class="absolute -bottom-2 left-1/2 transform -translate-x-1/2 bg-white px-4 py-1 rounded-full text-sm font-black text-game-purple border-2 border-gray-200 whitespace-nowrap">
+                    {{ t('guide_mascot') }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 快速導航卡片 -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <a href="#dashboard" class="bg-white rounded-2xl p-4 border-2 border-gray-200 card-3d border-b-gray-300 text-center hover:border-game-green transition-all">
+            <div class="w-12 h-12 bg-game-green rounded-xl flex items-center justify-center text-white mx-auto mb-2">
+                <i data-lucide="map" class="w-6 h-6"></i>
+            </div>
+            <span class="font-black text-sm text-gray-700">{{ t('guide_nav_map') }}</span>
+        </a>
+        <a href="#therapy" class="bg-white rounded-2xl p-4 border-2 border-gray-200 card-3d border-b-gray-300 text-center hover:border-game-yellow transition-all">
+            <div class="w-12 h-12 bg-game-yellow rounded-xl flex items-center justify-center text-white mx-auto mb-2">
+                <i data-lucide="swords" class="w-6 h-6"></i>
+            </div>
+            <span class="font-black text-sm text-gray-700">{{ t('guide_nav_training') }}</span>
+        </a>
+        <a href="#reports" class="bg-white rounded-2xl p-4 border-2 border-gray-200 card-3d border-b-gray-300 text-center hover:border-game-red transition-all">
+            <div class="w-12 h-12 bg-game-red rounded-xl flex items-center justify-center text-white mx-auto mb-2">
+                <i data-lucide="book-open" class="w-6 h-6"></i>
+            </div>
+            <span class="font-black text-sm text-gray-700">{{ t('guide_nav_diary') }}</span>
+        </a>
+        <a href="#quick" class="bg-white rounded-2xl p-4 border-2 border-gray-200 card-3d border-b-gray-300 text-center hover:border-game-blue transition-all">
+            <div class="w-12 h-12 bg-game-blue rounded-xl flex items-center justify-center text-white mx-auto mb-2">
+                <i data-lucide="zap" class="w-6 h-6"></i>
+            </div>
+            <span class="font-black text-sm text-gray-700">{{ t('guide_nav_quick') }}</span>
+        </a>
+    </div>
+
+    <!-- 儀表板功能 -->
+    <div id="dashboard" class="bg-white rounded-3xl p-6 border-2 border-gray-200 card-3d border-b-gray-300 scroll-mt-20">
+        <div class="flex items-center gap-4 mb-4">
+            <div class="w-16 h-16 bg-game-green rounded-2xl flex items-center justify-center text-white border-b-4 border-green-600">
+                <i data-lucide="map" class="w-8 h-8"></i>
+            </div>
+            <div>
+                <h2 class="text-2xl font-black text-gray-800">{{ t('guide_dashboard_title') }}</h2>
+                <p class="text-gray-500 font-bold">{{ t('guide_dashboard_desc') }}</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            <div class="bg-gray-50 p-4 rounded-2xl border-l-8 border-game-green">
+                <div class="flex items-center gap-2 mb-2">
+                    <i data-lucide="flame" class="text-orange-500 fill-orange-500 w-5 h-5"></i>
+                    <span class="font-black text-gray-700">{{ t('guide_weekly_streak') }}</span>
+                </div>
+                <p class="text-gray-600 font-bold">{{ t('guide_weekly_desc') }}</p>
+            </div>
+            <div class="bg-gray-50 p-4 rounded-2xl border-l-8 border-game-blue">
+                <div class="flex items-center gap-2 mb-2">
+                    <i data-lucide="gem" class="text-game-blue fill-game-blue w-5 h-5"></i>
+                    <span class="font-black text-gray-700">{{ t('guide_total_practice') }}</span>
+                </div>
+                <p class="text-gray-600 font-bold">{{ t('guide_total_desc') }}</p>
+            </div>
+            <div class="bg-gray-50 p-4 rounded-2xl border-l-8 border-game-yellow">
+                <div class="flex items-center gap-2 mb-2">
+                    <i data-lucide="crown" class="text-game-yellow fill-game-yellow w-5 h-5"></i>
+                    <span class="font-black text-gray-700">{{ t('guide_avg_score') }}</span>
+                </div>
+                <p class="text-gray-600 font-bold">{{ t('guide_avg_desc') }}</p>
+            </div>
+            <div class="bg-gray-50 p-4 rounded-2xl border-l-8 border-game-purple">
+                <div class="flex items-center gap-2 mb-2">
+                    <i data-lucide="trending-up" class="text-game-purple w-5 h-5"></i>
+                    <span class="font-black text-gray-700">{{ t('guide_trend') }}</span>
+                </div>
+                <p class="text-gray-600 font-bold">{{ t('guide_trend_desc') }}</p>
+            </div>
+        </div>
+
+        <!-- 推薦練習區域 -->
+        <div class="mt-6 bg-blue-50 p-4 rounded-2xl">
+            <h3 class="font-black text-game-blue mb-3 flex items-center gap-2">
+                <i data-lucide="sparkles" class="w-5 h-5"></i>
+                {{ t('guide_recommend') }}
+            </h3>
+            <p class="text-gray-600 font-bold">{{ t('guide_recommend_desc') }}</p>
+        </div>
+
+        <!-- 每日任務區域 -->
+        <div class="mt-4 bg-orange-50 p-4 rounded-2xl">
+            <h3 class="font-black text-orange-500 mb-3 flex items-center gap-2">
+                <i data-lucide="calendar" class="w-5 h-5"></i>
+                {{ t('guide_daily_task') }}
+            </h3>
+            <p class="text-gray-600 font-bold">{{ t('guide_daily_desc') }}</p>
+        </div>
+    </div>
+
+    <!-- 治療練習功能 -->
+    <div id="therapy" class="bg-white rounded-3xl p-6 border-2 border-gray-200 card-3d border-b-gray-300 scroll-mt-20">
+        <div class="flex items-center gap-4 mb-4">
+            <div class="w-16 h-16 bg-game-yellow rounded-2xl flex items-center justify-center text-white border-b-4 border-yellow-600">
+                <i data-lucide="swords" class="w-8 h-8"></i>
+            </div>
+            <div>
+                <h2 class="text-2xl font-black text-gray-800">{{ t('guide_therapy_title') }}</h2>
+                <p class="text-gray-500 font-bold">{{ t('guide_therapy_desc') }}</p>
+            </div>
+        </div>
+
+        <!-- 發音練習 -->
+        <div class="mb-8">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 bg-game-blue rounded-lg flex items-center justify-center text-white">
+                    <i data-lucide="mic" class="w-5 h-5"></i>
+                </div>
+                <h3 class="text-xl font-black text-game-blue">{{ t('guide_pronunciation') }}</h3>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-blue-50 p-4 rounded-2xl flex items-start gap-3">
+                    <div class="bg-game-blue text-white w-8 h-8 rounded-full flex items-center justify-center text-lg font-black shrink-0">1</div>
+                    <div>
+                        <span class="font-black text-game-blue block mb-1">{{ t('guide_p_record') }}</span>
+                        <span class="font-bold text-gray-600">{{ t('guide_p_record_desc') }}</span>
+                    </div>
+                </div>
+                <div class="bg-blue-50 p-4 rounded-2xl flex items-start gap-3">
+                    <div class="bg-game-blue text-white w-8 h-8 rounded-full flex items-center justify-center text-lg font-black shrink-0">2</div>
+                    <div>
+                        <span class="font-black text-game-blue block mb-1">{{ t('guide_p_target') }}</span>
+                        <span class="font-bold text-gray-600">{{ t('guide_p_target_desc') }}</span>
+                    </div>
+                </div>
+                <div class="bg-blue-50 p-4 rounded-2xl flex items-start gap-3">
+                    <div class="bg-game-blue text-white w-8 h-8 rounded-full flex items-center justify-center text-lg font-black shrink-0">3</div>
+                    <div>
+                        <span class="font-black text-game-blue block mb-1">{{ t('guide_p_score') }}</span>
+                        <span class="font-bold text-gray-600">{{ t('guide_p_score_desc') }}</span>
+                    </div>
+                </div>
+                <div class="bg-blue-50 p-4 rounded-2xl flex items-start gap-3">
+                    <div class="bg-game-blue text-white w-8 h-8 rounded-full flex items-center justify-center text-lg font-black shrink-0">4</div>
+                    <div>
+                        <span class="font-black text-game-blue block mb-1">{{ t('guide_p_feedback') }}</span>
+                        <span class="font-bold text-gray-600">{{ t('guide_p_feedback_desc') }}</span>
+                    </div>
+                </div>
+                <div class="bg-blue-50 p-4 rounded-2xl flex items-start gap-3 md:col-span-2">
+                    <div class="bg-game-blue text-white w-8 h-8 rounded-full flex items-center justify-center text-lg font-black shrink-0">5</div>
+                    <div>
+                        <span class="font-black text-game-blue block mb-1">{{ t('guide_p_face') }}</span>
+                        <span class="font-bold text-gray-600">{{ t('guide_p_face_desc') }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 情景對話 -->
+        <div>
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 bg-game-green rounded-lg flex items-center justify-center text-white">
+                    <i data-lucide="message-circle" class="w-5 h-5"></i>
+                </div>
+                <h3 class="text-xl font-black text-game-green">{{ t('guide_conversation') }}</h3>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-green-50 p-4 rounded-2xl flex items-start gap-3">
+                    <div class="bg-game-green text-white w-8 h-8 rounded-full flex items-center justify-center text-lg font-black shrink-0">1</div>
+                    <div>
+                        <span class="font-black text-game-green block mb-1">{{ t('guide_c_scene') }}</span>
+                        <span class="font-bold text-gray-600">{{ t('guide_c_scene_desc') }}</span>
+                    </div>
+                </div>
+                <div class="bg-green-50 p-4 rounded-2xl flex items-start gap-3">
+                    <div class="bg-game-green text-white w-8 h-8 rounded-full flex items-center justify-center text-lg font-black shrink-0">2</div>
+                    <div>
+                        <span class="font-black text-game-green block mb-1">{{ t('guide_c_mission') }}</span>
+                        <span class="font-bold text-gray-600">{{ t('guide_c_mission_desc') }}</span>
+                    </div>
+                </div>
+                <div class="bg-green-50 p-4 rounded-2xl flex items-start gap-3">
+                    <div class="bg-game-green text-white w-8 h-8 rounded-full flex items-center justify-center text-lg font-black shrink-0">3</div>
+                    <div>
+                        <span class="font-black text-game-green block mb-1">{{ t('guide_c_record') }}</span>
+                        <span class="font-bold text-gray-600">{{ t('guide_c_record_desc') }}</span>
+                    </div>
+                </div>
+                <div class="bg-green-50 p-4 rounded-2xl flex items-start gap-3">
+                    <div class="bg-game-green text-white w-8 h-8 rounded-full flex items-center justify-center text-lg font-black shrink-0">4</div>
+                    <div>
+                        <span class="font-black text-game-green block mb-1">{{ t('guide_c_reply') }}</span>
+                        <span class="font-bold text-gray-600">{{ t('guide_c_reply_desc') }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 報告中心功能 -->
+    <div id="reports" class="bg-white rounded-3xl p-6 border-2 border-gray-200 card-3d border-b-gray-300 scroll-mt-20">
+        <div class="flex items-center gap-4 mb-4">
+            <div class="w-16 h-16 bg-game-red rounded-2xl flex items-center justify-center text-white border-b-4 border-red-600">
+                <i data-lucide="book-open" class="w-8 h-8"></i>
+            </div>
+            <div>
+                <h2 class="text-2xl font-black text-gray-800">{{ t('guide_reports_title') }}</h2>
+                <p class="text-gray-500 font-bold">{{ t('guide_reports_desc') }}</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-red-50 p-5 rounded-2xl text-center hover:scale-105 transition-transform">
+                <div class="w-14 h-14 bg-game-red rounded-full flex items-center justify-center text-white mx-auto mb-3">
+                    <i data-lucide="trending-up" class="w-7 h-7"></i>
+                </div>
+                <h4 class="font-black text-gray-800 mb-2">{{ t('guide_r_progress') }}</h4>
+                <p class="text-sm text-gray-600 font-bold">{{ t('guide_r_progress_desc') }}</p>
+            </div>
+            <div class="bg-red-50 p-5 rounded-2xl text-center hover:scale-105 transition-transform">
+                <div class="w-14 h-14 bg-game-red rounded-full flex items-center justify-center text-white mx-auto mb-3">
+                    <i data-lucide="history" class="w-7 h-7"></i>
+                </div>
+                <h4 class="font-black text-gray-800 mb-2">{{ t('guide_r_history') }}</h4>
+                <p class="text-sm text-gray-600 font-bold">{{ t('guide_r_history_desc') }}</p>
+            </div>
+            <div class="bg-red-50 p-5 rounded-2xl text-center hover:scale-105 transition-transform">
+                <div class="w-14 h-14 bg-game-red rounded-full flex items-center justify-center text-white mx-auto mb-3">
+                    <i data-lucide="alert-triangle" class="w-7 h-7"></i>
+                </div>
+                <h4 class="font-black text-gray-800 mb-2">{{ t('guide_r_mistakes') }}</h4>
+                <p class="text-sm text-gray-600 font-bold">{{ t('guide_r_mistakes_desc') }}</p>
+            </div>
+        </div>
+
+        <!-- 練習記錄庫 -->
+        <div class="mt-6 bg-gray-50 p-4 rounded-2xl">
+            <h3 class="font-black text-gray-700 mb-3 flex items-center gap-2">
+                <i data-lucide="database" class="w-5 h-5"></i>
+                {{ t('guide_r_db') }}
+            </h3>
+            <p class="text-gray-600 font-bold">{{ t('guide_r_db_desc') }}</p>
+        </div>
+    </div>
+
+    <!-- 快捷功能 -->
+    <div id="quick" class="bg-white rounded-3xl p-6 border-2 border-gray-200 card-3d border-b-gray-300 scroll-mt-20">
+        <div class="flex items-center gap-4 mb-4">
+            <div class="w-16 h-16 bg-game-blue rounded-2xl flex items-center justify-center text-white border-b-4 border-blue-600">
+                <i data-lucide="zap" class="w-8 h-8"></i>
+            </div>
+            <div>
+                <h2 class="text-2xl font-black text-gray-800">{{ t('guide_quick_title') }}</h2>
+                <p class="text-gray-500 font-bold">{{ t('guide_quick_desc') }}</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-blue-50 p-4 rounded-2xl flex items-center gap-4">
+                <div class="w-12 h-12 bg-game-blue rounded-xl flex items-center justify-center text-white">
+                    <i data-lucide="refresh-cw" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h4 class="font-black text-gray-800">{{ t('guide_q_refresh') }}</h4>
+                    <p class="text-xs text-gray-600 font-bold">{{ t('guide_q_refresh_desc') }}</p>
+                </div>
+            </div>
+            <div class="bg-blue-50 p-4 rounded-2xl flex items-center gap-4">
+                <div class="w-12 h-12 bg-game-blue rounded-xl flex items-center justify-center text-white">
+                    <i data-lucide="calendar" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h4 class="font-black text-gray-800">{{ t('guide_q_daily') }}</h4>
+                    <p class="text-xs text-gray-600 font-bold">{{ t('guide_q_daily_desc') }}</p>
+                </div>
+            </div>
+            <div class="bg-blue-50 p-4 rounded-2xl flex items-center gap-4">
+                <div class="w-12 h-12 bg-game-blue rounded-xl flex items-center justify-center text-white">
+                    <i data-lucide="target" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h4 class="font-black text-gray-800">{{ t('guide_q_personal') }}</h4>
+                    <p class="text-xs text-gray-600 font-bold">{{ t('guide_q_personal_desc') }}</p>
+                </div>
+            </div>
+            <div class="bg-blue-50 p-4 rounded-2xl flex items-center gap-4">
+                <div class="w-12 h-12 bg-game-blue rounded-xl flex items-center justify-center text-white">
+                    <i data-lucide="log-out" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h4 class="font-black text-gray-800">{{ t('guide_q_logout') }}</h4>
+                    <p class="text-xs text-gray-600 font-bold">{{ t('guide_q_logout_desc') }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 實用小貼士 -->
+    <div class="bg-gradient-to-r from-game-yellow/20 to-game-orange/20 rounded-3xl p-6 border-2 border-game-yellow/30">
+        <div class="flex items-center gap-3 mb-6">
+            <div class="w-12 h-12 bg-game-yellow rounded-full flex items-center justify-center text-white">
+                <i data-lucide="lightbulb" class="w-6 h-6 fill-white"></i>
+            </div>
+            <h3 class="text-2xl font-black text-game-yellow">{{ t('guide_tips_title') }}</h3>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="flex items-start gap-3 bg-white/60 p-3 rounded-xl">
+                <span class="bg-game-yellow text-white w-7 h-7 rounded-full flex items-center justify-center text-md font-black shrink-0">1</span>
+                <span class="font-bold text-gray-700">{{ t('guide_tip1') }}</span>
+            </div>
+            <div class="flex items-start gap-3 bg-white/60 p-3 rounded-xl">
+                <span class="bg-game-yellow text-white w-7 h-7 rounded-full flex items-center justify-center text-md font-black shrink-0">2</span>
+                <span class="font-bold text-gray-700">{{ t('guide_tip2') }}</span>
+            </div>
+            <div class="flex items-start gap-3 bg-white/60 p-3 rounded-xl">
+                <span class="bg-game-yellow text-white w-7 h-7 rounded-full flex items-center justify-center text-md font-black shrink-0">3</span>
+                <span class="font-bold text-gray-700">{{ t('guide_tip3') }}</span>
+            </div>
+            <div class="flex items-start gap-3 bg-white/60 p-3 rounded-xl">
+                <span class="bg-game-yellow text-white w-7 h-7 rounded-full flex items-center justify-center text-md font-black shrink-0">4</span>
+                <span class="font-bold text-gray-700">{{ t('guide_tip4') }}</span>
+            </div>
+            <div class="flex items-start gap-3 bg-white/60 p-3 rounded-xl md:col-span-2">
+                <span class="bg-game-yellow text-white w-7 h-7 rounded-full flex items-center justify-center text-md font-black shrink-0">5</span>
+                <span class="font-bold text-gray-700">{{ t('guide_tip5') }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 開始冒險按鈕 -->
+    <div class="text-center mt-10">
+        <a href="{{ url_for('dashboard') }}" class="btn-game bg-game-green text-white px-12 py-6 rounded-2xl font-black text-3xl border-b-8 border-green-600 inline-flex items-center gap-4 hover:scale-105 transition-transform shadow-xl">
+            <i data-lucide="check-circle" class="w-10 h-10"></i>
+            {{ t('guide_done') }}
+        </a>
+        <p class="text-gray-400 font-bold mt-4">{{ t('guide_ready') }}</p>
+    </div>
+
+    <!-- 底部導航 -->
+    <div class="flex justify-between mt-8 pt-4 border-t-2 border-gray-200">
+        <a href="{{ url_for('analysis') }}" class="btn-game bg-gray-200 text-gray-600 px-5 py-2 rounded-xl font-bold border-b-4 border-gray-300 flex items-center gap-2 text-sm">
+            <i data-lucide="arrow-left" class="w-4 h-4"></i>
+            {{ t('guide_back_assessment') }}
+        </a>
+        <a href="{{ url_for('logout') }}" class="btn-game bg-gray-200 text-gray-600 px-5 py-2 rounded-xl font-bold border-b-4 border-gray-300 flex items-center gap-2 text-sm">
+            <i data-lucide="log-out" class="w-4 h-4"></i>
+            {{ t('guide_logout') }}
+        </a>
+    </div>
+</div>
+
+<style>
+    /* 平滑滾動 */
+    html {
+        scroll-behavior: smooth;
+    }
+
+    /* 可愛的熊貓動畫 */
+    @keyframes bounce-slow {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-10px); }
+    }
+    .animate-bounce-slow {
+        animation: bounce-slow 3s infinite;
+    }
+</style>
+
+<script>
+    lucide.createIcons();
+
+    // 添加活動導航高亮
+    document.addEventListener('DOMContentLoaded', function() {
+        const sections = document.querySelectorAll('[id]');
+        const navLinks = document.querySelectorAll('a[href^="#"]');
+
+        window.addEventListener('scroll', function() {
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop - 100;
+                if (pageYOffset >= sectionTop) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            navLinks.forEach(link => {
+                link.classList.remove('active-nav');
+                if (link.getAttribute('href') === `#${current}`) {
+                    link.classList.add('active-nav');
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

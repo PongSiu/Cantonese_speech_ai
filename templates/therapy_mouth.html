@@ -1,0 +1,393 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto h-full flex flex-col">
+    <!-- Flashcard Container -->
+    <div class="relative w-full aspect-[4/3] perspective-1000">
+        <!-- The Card -->
+        <div id="flashcard"
+            class="w-full h-full bg-white rounded-[40px] border-4 border-gray-200 shadow-[0_10px_0_#e5e7eb] flex flex-col items-center justify-center p-8 relative overflow-hidden transition-all duration-300">
+
+            <!-- Difficulty Label -->
+            <div
+                class="absolute top-6 left-6 bg-purple-100 text-purple-700 px-4 py-1 rounded-full font-black text-sm uppercase">
+                {{ t('mouth_title') }}
+            </div>
+
+            <!-- Controls (Top Right) -->
+            <div class="absolute top-6 right-6 flex gap-2">
+                <button onclick="alert({{ t('mouth_info')|tojson }})"
+                    class="p-2 text-gray-300 hover:text-game-purple transition-colors">
+                    <i data-lucide="info" class="w-8 h-8"></i>
+                </button>
+                <button id="shuffle-targets" class="p-2 text-gray-300 hover:text-game-purple transition-colors">
+                    <i data-lucide="shuffle" class="w-8 h-8"></i>
+                </button>
+            </div>
+
+            <!-- Content area -->
+            <div class="w-full z-10 flex flex-col items-center">
+                <!-- Canvas container -->
+                <div
+                    class="canvas-container w-full rounded-2xl overflow-hidden border-2 border-gray-300 shadow-inner mb-2">
+                    <canvas id="output-canvas" width="600" height="450"
+                        class="block w-full h-auto bg-[#1c2b36] scale-x-[-1]"></canvas>
+                </div>
+
+                <!-- Chinese word panel -->
+                <div class="text-center space-y-1 mt-2">
+                    <p class="text-gray-400 font-bold uppercase tracking-widest text-sm">{{ t('mouth_current_target') }}</p>
+                    <h2 id="chinese-word" class="text-5xl font-black text-gray-800 tracking-tight">你好</h2>
+                    <div class="bg-gray-100 px-6 py-1 rounded-2xl inline-block">
+                        <p id="exercise-ipa" class="text-md font-mono text-gray-500 font-bold">{{ t('mouth_align') }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Result Overlay -->
+            <div id="result-overlay"
+                class="absolute inset-0 bg-white/95 z-20 hidden flex-col items-center justify-center">
+                <div id="score-icon" class="mb-4 transform transition-all"></div>
+                <h3 id="user-score" class="text-5xl font-black mb-2 text-game-purple">--</h3>
+                <p id="ai-feedback" class="text-gray-500 font-bold max-w-xs text-center mb-6">{{ t('mouth_success') }}</p>
+
+                <div class="flex gap-4">
+                    <button onclick="recordAgain()"
+                        class="btn-game bg-gray-200 text-gray-600 px-6 py-3 rounded-xl font-bold border-b-4 border-gray-300">
+                        {{ t('mouth_continue') }}
+                    </button>
+                    <button onclick="nextWord()"
+                        class="btn-game bg-game-purple text-white px-6 py-3 rounded-xl font-bold border-b-4 border-purple-600">
+                        {{ t('mouth_next') }}
+                    </button>
+                </div>
+            </div>
+
+            <!-- Bottom Wave Decoration -->
+            <div class="wave-decoration"></div>
+        </div>
+    </div>
+
+    <!-- Stats panel -->
+    <div class="mt-6 grid grid-cols-4 gap-3 bg-[#17222b] p-4 rounded-3xl border border-[#3e5f7a] shadow-inner">
+        <div class="bg-[#1e3140] rounded-xl p-2 text-center shadow-md border-l-2 border-[#3f7fb0]">
+            <div class="text-[#b0d3f0] text-xs uppercase font-light mb-1">{{ t('mouth_upper_target') }}</div>
+            <div class="font-mono text-[#b7f0b7] bg-[#0e1a24] py-1 px-2 rounded-full text-sm border border-[#2d6d4d]"
+                id="target-upper">—</div>
+        </div>
+        <div class="bg-[#1e3140] rounded-xl p-2 text-center shadow-md border-l-2 border-[#3f7fb0]">
+            <div class="text-[#b0d3f0] text-xs uppercase font-light mb-1">{{ t('mouth_lower_target') }}</div>
+            <div class="font-mono text-[#b7f0b7] bg-[#0e1a24] py-1 px-2 rounded-full text-sm border border-[#2d6d4d]"
+                id="target-lower">—</div>
+        </div>
+        <div class="bg-[#1e3140] rounded-xl p-2 text-center shadow-md border-l-2 border-[#3f7fb0]">
+            <div class="text-[#b0d3f0] text-xs uppercase font-light mb-1">{{ t('mouth_left_target') }}</div>
+            <div class="font-mono text-[#b7f0b7] bg-[#0e1a24] py-1 px-2 rounded-full text-sm border border-[#2d6d4d]"
+                id="target-left">—</div>
+        </div>
+        <div class="bg-[#1e3140] rounded-xl p-2 text-center shadow-md border-l-2 border-[#3f7fb0]">
+            <div class="text-[#b0d3f0] text-xs uppercase font-light mb-1">{{ t('mouth_right_target') }}</div>
+            <div class="font-mono text-[#b7f0b7] bg-[#0e1a24] py-1 px-2 rounded-full text-sm border border-[#2d6d4d]"
+                id="target-right">—</div>
+        </div>
+    </div>
+
+    <!-- Footer: status and reset button -->
+    <div class="mt-6 flex justify-between items-center text-gray-300 px-2">
+        <div class="flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-green-500 shadow-lg shadow-green-400/50"
+                id="face-status-indicator"></span>
+            <span id="fps-status" class="text-sm font-medium">{{ t('mouth_waiting') }}</span>
+        </div>
+        <button id="reset-button"
+            class="bg-[#27506b] hover:bg-[#2f6490] text-white px-5 py-2 rounded-full text-sm font-medium border border-[#4080b0] transition-colors">
+            {{ t('mouth_restart') }}
+        </button>
+    </div>
+</div>
+
+<!-- hidden coordinate displays (used by js) -->
+<div class="hidden">
+    <div id="upper-coord">x: — y: —</div>
+    <div id="lower-coord">x: — y: —</div>
+    <div id="left-coord">x: — y: —</div>
+    <div id="right-coord">x: — y: —</div>
+</div>
+
+<!-- MediaPipe libraries -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+
+<script>
+    const _t = {
+        perfect: {{ t('mouth_perfect')|tojson }},
+        success: {{ t('mouth_success')|tojson }},
+        no_face: {{ t('mouth_no_face')|tojson }},
+        tracking: {{ t('mouth_tracking')|tojson }},
+        camera_started: {{ t('mouth_camera_started')|tojson }},
+        camera_error: {{ t('mouth_camera_error')|tojson }},
+    };
+
+    (function () {
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+
+        const canvas = document.getElementById('output-canvas');
+        if (!canvas) { console.error('canvas not found'); return; }
+        const ctx = canvas.getContext('2d');
+
+        const upperEl = document.getElementById('upper-coord');
+        const lowerEl = document.getElementById('lower-coord');
+        const leftEl = document.getElementById('left-coord');
+        const rightEl = document.getElementById('right-coord');
+
+        const targetUpperEl = document.getElementById('target-upper');
+        const targetLowerEl = document.getElementById('target-lower');
+        const targetLeftEl = document.getElementById('target-left');
+        const targetRightEl = document.getElementById('target-right');
+
+        const chineseWordSpan = document.getElementById('chinese-word');
+        const fpsStatus = document.getElementById('fps-status');
+        const resetBtn = document.getElementById('reset-button');
+        const shuffleBtn = document.getElementById('shuffle-targets');
+        const resultOverlay = document.getElementById('result-overlay');
+        const userScoreSpan = document.getElementById('user-score');
+        const aiFeedback = document.getElementById('ai-feedback');
+        const scoreIconDiv = document.getElementById('score-icon');
+
+        const UPPER_LIP_INDEX = 13;
+        const LOWER_LIP_INDEX = 14;
+        const LEFT_CORNER_INDEX = 61;
+        const RIGHT_CORNER_INDEX = 291;
+
+        const wordTargets = [
+            { word: "啊", targets: [{ x: 300, y: 200 }, { x: 300, y: 250 }, { x: 250, y: 230 }, { x: 350, y: 230 }] },
+            { word: "五", targets: [{ x: 300, y: 230 }, { x: 300, y: 230 }, { x: 250, y: 230 }, { x: 350, y: 230 }] },
+            { word: "你", targets: [{ x: 300, y: 220 }, { x: 300, y: 250 }, { x: 250, y: 230 }, { x: 350, y: 230 }] },
+            { word: "好", targets: [{ x: 300, y: 220 }, { x: 300, y: 240 }, { x: 270, y: 230 }, { x: 330, y: 230 }] },
+        ];
+
+        let currentIndex = 0;
+        let currentTargets = wordTargets[currentIndex].targets.slice();
+        let canAdvance = true;
+
+        function updateTargetDisplay() {
+            if (targetUpperEl) targetUpperEl.innerText = `${Math.round(currentTargets[0].x)}, ${Math.round(currentTargets[0].y)}`;
+            if (targetLowerEl) targetLowerEl.innerText = `${Math.round(currentTargets[1].x)}, ${Math.round(currentTargets[1].y)}`;
+            if (targetLeftEl) targetLeftEl.innerText = `${Math.round(currentTargets[2].x)}, ${Math.round(currentTargets[2].y)}`;
+            if (targetRightEl) targetRightEl.innerText = `${Math.round(currentTargets[3].x)}, ${Math.round(currentTargets[3].y)}`;
+            if (chineseWordSpan) chineseWordSpan.innerText = wordTargets[currentIndex].word;
+        }
+        updateTargetDisplay();
+
+        window.nextWord = function () {
+            if (!canAdvance) return;
+            canAdvance = false;
+            currentIndex = (currentIndex + 1) % wordTargets.length;
+            currentTargets = wordTargets[currentIndex].targets.slice();
+            updateTargetDisplay();
+            setTimeout(() => { canAdvance = true; }, 1000);
+            if (resultOverlay) resultOverlay.classList.add('hidden');
+        };
+
+        window.recordAgain = function () {
+            if (resultOverlay) resultOverlay.classList.add('hidden');
+        };
+
+        function showSuccessOverlay() {
+            if (!resultOverlay) return;
+            if (userScoreSpan) userScoreSpan.innerText = _t.perfect;
+            if (aiFeedback) aiFeedback.innerText = _t.success;
+            if (scoreIconDiv) scoreIconDiv.innerHTML = '<div class="text-6xl animate-bounce">😊</div>';
+            resultOverlay.classList.remove('hidden');
+            resultOverlay.classList.add('flex');
+        }
+
+        let camera = null;
+        const faceMesh = new FaceMesh({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+        });
+
+        faceMesh.setOptions({
+            maxNumFaces: 1,
+            refineLandmarks: false,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+
+        function drawRedTargets(ctx, targets) {
+            if (!ctx || !targets) return;
+            targets.forEach(pt => {
+                if (!pt) return;
+                ctx.beginPath();
+                ctx.arc(pt.x, pt.y, 9, 0, 2 * Math.PI);
+                ctx.strokeStyle = '#ff5a5a';
+                ctx.lineWidth = 3;
+                ctx.shadowColor = '#ff000080';
+                ctx.shadowBlur = 10;
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.arc(pt.x, pt.y, 4, 0, 2 * Math.PI);
+                ctx.fillStyle = '#ff3a3a';
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            });
+        }
+
+        faceMesh.onResults(function (results) {
+            ctx.save();
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (results.image) {
+                ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
+            } else {
+                ctx.fillStyle = '#1c2b36';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+
+            drawRedTargets(ctx, currentTargets);
+
+            if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) {
+                if (fpsStatus) fpsStatus.innerText = _t.no_face;
+                if (upperEl) upperEl.innerText = 'x: —  y: —';
+                if (lowerEl) lowerEl.innerText = 'x: —  y: —';
+                if (leftEl) leftEl.innerText = 'x: —  y: —';
+                if (rightEl) rightEl.innerText = 'x: —  y: —';
+                ctx.restore();
+                return;
+            }
+
+            if (fpsStatus) fpsStatus.innerText = _t.tracking;
+            const landmarks = results.multiFaceLandmarks[0];
+            const w = canvas.width, h = canvas.height;
+
+            function getPoint(index) {
+                const lm = landmarks[index];
+                return lm ? { x: lm.x * w, y: lm.y * h } : null;
+            }
+
+            const greenUpper = getPoint(UPPER_LIP_INDEX);
+            const greenLower = getPoint(LOWER_LIP_INDEX);
+            const greenLeft = getPoint(LEFT_CORNER_INDEX);
+            const greenRight = getPoint(RIGHT_CORNER_INDEX);
+
+            function drawGreenDot(pt) {
+                if (!pt) return;
+                ctx.beginPath();
+                ctx.arc(pt.x, pt.y, 7, 0, 2 * Math.PI);
+                ctx.shadowColor = '#9effa0';
+                ctx.shadowBlur = 15;
+                ctx.fillStyle = '#2fe06a';
+                ctx.fill();
+                ctx.shadowBlur = 8;
+                ctx.beginPath();
+                ctx.arc(pt.x, pt.y, 3, 0, 2 * Math.PI);
+                ctx.fillStyle = 'white';
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+
+            drawGreenDot(greenUpper);
+            drawGreenDot(greenLower);
+            drawGreenDot(greenLeft);
+            drawGreenDot(greenRight);
+
+            if (upperEl) upperEl.innerText = greenUpper ? `x: ${Math.round(greenUpper.x)}  y: ${Math.round(greenUpper.y)}` : 'x: —  y: —';
+            if (lowerEl) lowerEl.innerText = greenLower ? `x: ${Math.round(greenLower.x)}  y: ${Math.round(greenLower.y)}` : 'x: —  y: —';
+            if (leftEl) leftEl.innerText = greenLeft ? `x: ${Math.round(greenLeft.x)}  y: ${Math.round(greenLeft.y)}` : 'x: —  y: —';
+            if (rightEl) rightEl.innerText = greenRight ? `x: ${Math.round(greenRight.x)}  y: ${Math.round(greenRight.y)}` : 'x: —  y: —';
+
+            const threshold = 18;
+            if (greenUpper && greenLower && greenLeft && greenRight && canAdvance) {
+                const dUpper = Math.hypot(greenUpper.x - currentTargets[0].x, greenUpper.y - currentTargets[0].y);
+                const dLower = Math.hypot(greenLower.x - currentTargets[1].x, greenLower.y - currentTargets[1].y);
+                const dLeft = Math.hypot(greenLeft.x - currentTargets[2].x, greenLeft.y - currentTargets[2].y);
+                const dRight = Math.hypot(greenRight.x - currentTargets[3].x, greenRight.y - currentTargets[3].y);
+
+                if (dUpper < threshold && dLower < threshold && dLeft < threshold && dRight < threshold) {
+                    showSuccessOverlay();
+                    canAdvance = false;
+                    setTimeout(() => { canAdvance = true; }, 2000);
+                }
+            }
+
+            ctx.restore();
+        });
+
+        async function initCamera() {
+            if (camera) await camera.stop().catch(() => { });
+            const videoElement = document.createElement('video');
+            videoElement.style.display = 'none';
+            document.body.appendChild(videoElement);
+            try {
+                camera = new Camera(videoElement, {
+                    onFrame: async () => { await faceMesh.send({ image: videoElement }); },
+                    width: 640,
+                    height: 480,
+                    facingMode: 'user'
+                });
+                await camera.start();
+                if (fpsStatus) fpsStatus.innerText = _t.camera_started;
+            } catch (err) {
+                console.error(err);
+                if (fpsStatus) fpsStatus.innerText = _t.camera_error;
+            }
+        }
+
+        if (resetBtn) resetBtn.addEventListener('click', initCamera);
+        if (shuffleBtn) shuffleBtn.addEventListener('click', () => { nextWord(); });
+
+        initCamera();
+
+        window.addEventListener('beforeunload', () => {
+            if (camera) camera.stop();
+        });
+
+        setInterval(() => {
+            const dot = document.getElementById('face-status-indicator');
+            if (dot) {
+                if (fpsStatus && fpsStatus.innerText.includes(_t.tracking)) {
+                    dot.classList.remove('bg-gray-500');
+                    dot.classList.add('bg-green-500', 'shadow-green-400/50');
+                } else {
+                    dot.classList.remove('bg-green-500', 'shadow-green-400/50');
+                    dot.classList.add('bg-gray-500');
+                }
+            }
+        }, 500);
+    })();
+</script>
+
+<script>
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+</script>
+
+<style>
+    .perspective-1000 {
+        perspective: 1000px;
+    }
+
+    .wave-decoration {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 6rem;
+        background: #e2e8f0;
+        border-radius: 50% 50% 0 0;
+        opacity: 0.5;
+        transform: translateY(3rem);
+        pointer-events: none;
+    }
+
+    .btn-game {
+        transition: all 0.1s;
+        border-bottom-width: 4px;
+    }
+
+    .btn-game:active {
+        transform: translateY(2px);
+        border-bottom-width: 0px;
+        margin-top: 4px;
+    }
+</style>
+{% endblock %}

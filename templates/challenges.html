@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-6 pb-10">
+
+    <!-- Header -->
+    <div class="bg-gradient-to-r from-game-purple to-purple-700 rounded-3xl p-8 text-white shadow-lg card-3d border-b-purple-900">
+        <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+                <h1 class="text-3xl font-black mb-2 flex items-center gap-3">
+                    <i data-lucide="calendar-check" class="w-8 h-8"></i>
+                    {{ t('challenge_title') }}
+                </h1>
+                <p class="font-bold opacity-90 text-lg">{{ t('challenge_theme') }}{{ weekly_theme }}</p>
+            </div>
+            <div class="bg-white/20 px-6 py-4 rounded-2xl text-center backdrop-blur border border-white/30">
+                <p class="text-sm font-bold mb-1 text-purple-100">{{ t('challenge_progress') }}</p>
+                <div class="text-4xl font-black text-yellow-300">{{ completed_count }}/{{ total_challenges }}</div>
+                <div class="w-full bg-white/20 rounded-full h-2 mt-2">
+                    <!-- 使用 data-progress 屬性，避開 CSS Linter 報錯 -->
+                    <div id="weekly-progress-bar" class="bg-yellow-300 h-2 rounded-full transition-all" data-progress="{{ weekly_progress }}"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Daily Challenges Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {% for challenge in daily_challenges %}
+        <div class="bg-white rounded-3xl p-6 border-2 shadow-sm card-3d
+            {% if challenge.completed %}
+                border-game-green border-b-green-600
+            {% else %}
+                border-gray-200 border-b-gray-300
+            {% endif %}">
+
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl flex items-center justify-center font-black text-white
+                        {% if challenge.completed %} bg-game-green {% else %} bg-game-purple {% endif %}">
+                        {% if challenge.completed %}
+                            <i data-lucide="check" class="w-5 h-5"></i>
+                        {% else %}
+                            {{ challenge.id + 1 }}
+                        {% endif %}
+                    </div>
+                    <div>
+                        <h3 class="font-black text-gray-800">{{ challenge.day_name }}</h3>
+                        <p class="text-xs text-gray-500 font-bold">{{ challenge.title }}</p>
+                    </div>
+                </div>
+                {% if challenge.completed %}
+                <span class="bg-green-100 text-game-green px-3 py-1 rounded-full text-xs font-black">{{ t('challenge_completed') }}</span>
+                {% endif %}
+            </div>
+
+            <div class="space-y-2 mb-4">
+                {% for word_item in challenge.target_words %}
+                <div class="bg-gray-50 rounded-xl px-4 py-2 flex items-center justify-between border border-gray-100">
+                    <span class="font-black text-gray-800 text-lg">{{ word_item.word }}</span>
+                    <span class="text-gray-400 font-mono text-sm">/{{ word_item.ipa }}/</span>
+                </div>
+                {% endfor %}
+            </div>
+
+            {% if not challenge.completed %}
+            <!-- 未完成：開始挑戰按鈕 -->
+            <button data-day-id="{{ challenge.id }}" 
+                    data-words="{{ challenge.target_words | tojson | forceescape }}" 
+                    onclick="triggerChallenge(this)"
+                    class="btn-game w-full bg-game-purple text-white py-3 rounded-xl font-black border-b-4 border-purple-700 flex items-center justify-center gap-2">
+                <i data-lucide="mic" class="w-4 h-4"></i>
+                {{ t('challenge_start') }}
+            </button>
+            {% else %}
+            <!-- 已完成：再次練習按鈕 -->
+            <button data-day-id="{{ challenge.id }}" 
+                    data-words="{{ challenge.target_words | tojson | forceescape }}" 
+                    onclick="triggerChallenge(this)"
+                    class="btn-game w-full bg-gray-100 text-gray-500 py-3 rounded-xl font-bold border-b-4 border-gray-200 flex items-center justify-center gap-2">
+                <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                {{ t('challenge_retry') }}
+            </button>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Back to dashboard -->
+    <div class="text-center mt-6">
+        <a href="/dashboard" class="btn-game bg-gray-200 text-gray-600 px-6 py-3 rounded-xl font-bold border-b-4 border-gray-300 inline-flex items-center gap-2">
+            <i data-lucide="arrow-left" class="w-4 h-4"></i>
+            {{ t('challenge_back') }}
+        </a>
+    </div>
+</div>
+
+<script>
+    lucide.createIcons();
+
+    // 處理頂部進度條寬度 (避開 CSS Linter)
+    document.addEventListener("DOMContentLoaded", function() {
+        const progressBar = document.getElementById('weekly-progress-bar');
+        if (progressBar) {
+            const progress = progressBar.getAttribute('data-progress');
+            progressBar.style.width = progress + '%';
+        }
+    });
+
+    // 觸發挑戰函數：從按鈕自身的 data 屬性讀取資料
+    function triggerChallenge(buttonElement) {
+        const dayId = buttonElement.getAttribute('data-day-id');
+        const wordsJson = buttonElement.getAttribute('data-words');
+        
+        let words = [];
+        try {
+            words = JSON.parse(wordsJson);
+        } catch(e) {
+            console.error("無法解析挑戰資料", e);
+            return;
+        }
+
+        // 將挑戰資料帶過去發音卡牌頁面
+        sessionStorage.setItem('challenge_queue', JSON.stringify(words));
+        sessionStorage.setItem('challenge_day_id', dayId);
+        sessionStorage.setItem('challenge_results', JSON.stringify([]));
+        
+        // 傳送 (Teleport) 去發音卡牌頁面
+        window.location.href = '/therapy/pronounce';
+    }
+</script>
+{% endblock %}
