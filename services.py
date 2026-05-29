@@ -26,8 +26,19 @@ AZURE_SPEECH_REGION = os.environ.get("AZURE_SPEECH_REGION", "eastasia")
 AZURE_TEXT_KEY = os.environ.get("AZURE_TEXT_KEY")
 AZURE_TEXT_ENDPOINT = os.environ.get("AZURE_TEXT_ENDPOINT")
 
-# Initialize clients
-client = genai.Client(api_key=API_KEY)
+# Initialize Gemini client.
+# Guard the construction so the whole web app can still boot when GEMINI_API_KEY
+# is missing/empty. Each AI function below checks `client` and degrades
+# gracefully instead of crashing the server at import time.
+client = None
+if API_KEY:
+    try:
+        client = genai.Client(api_key=API_KEY)
+    except Exception as e:
+        print(f"[services] Gemini client init failed: {e}")
+        client = None
+else:
+    print("[services] GEMINI_API_KEY not set — AI features disabled (app will still run).")
 
 # Initialize Azure clients (lazy loading)
 azure_text_client = None
@@ -236,8 +247,8 @@ def lookup_meaning(text):
             meaning = resp.text.strip().strip('"').strip("'")
             if meaning:
                 return meaning
-        except:
-            pass
+        except Exception as e:
+            print(f"lookup_meaning Gemini fallback failed: {e}")
     # Fallback: partial word matching
     parts = []
     for word in WORD_MEANINGS:
@@ -373,13 +384,15 @@ def analyze_pronunciation_azure(audio_file, reference_text):
         audio_file.seek(0)
         return process_audio(audio_file, target_word=reference_text)
 
-    return {"error": "Unknown error"}
+    # Azure returned an unexpected result reason — fall back to Gemini for consistency.
+    audio_file.seek(0)
+    return process_audio(audio_file, target_word=reference_text)
 
 # ==================== Gemini Logic ====================
 
 def process_audio(audio_file, target_word=None, target_ipa=None):
     """Gemini processing logic (Fallback / Phase 2)"""
-    if not API_KEY:
+    if not client:
         return {"error": "API Key missing"}
 
     try:
@@ -429,7 +442,7 @@ def process_audio(audio_file, target_word=None, target_ipa=None):
 # ==================== Phase 2 Logic (Mission Chat) ====================
 
 def process_mission_chat(audio_file, topic, current_mission_words, history):
-    if not API_KEY:
+    if not client:
         return {"error": "API Key missing"}
     try:
         base64_audio = blob_to_base64(audio_file)
@@ -518,8 +531,8 @@ def generate_assessment_content():
             config=types.GenerateContentConfig(response_mime_type="application/json")
         )
         return _parse_gemini_json(resp.text)
-    except:
-        print("Failed to generate assessment content.")
+    except Exception as e:
+        print(f"Failed to generate assessment content: {e}")
         return {
             "readingTasks": [
                 {"text": "你好。", "jyutping": "nei5 hou2", "meaning": "Hello."},
@@ -539,7 +552,7 @@ def generate_assessment_content():
 
 def generate_analysis_report(reading_data, conv_data):
     """Generate dual reports: client_report and professional_report."""
-    if not API_KEY:
+    if not client:
         return {"client_report": "Error: API Key missing", "professional_report": "Error: API Key missing"}
 
     prompt = f"""
@@ -570,7 +583,7 @@ def generate_analysis_report(reading_data, conv_data):
 
 def generate_growth_report(practice_history):
     """Generate progress analysis report comparing old and new data."""
-    if not API_KEY:
+    if not client:
         return "Error: API Key missing"
 
     if len(practice_history) > 15:
@@ -609,7 +622,7 @@ def generate_growth_report(practice_history):
 
 def generate_enhanced_report(data, email):
     """Generate enhanced report."""
-    if not API_KEY:
+    if not client:
         return "Error: API Key missing"
     try:
         prompt = f"你是言語治療師。根據練習數據為學生 {email} 生成廣東話分析報告。數據：{json.dumps(data, ensure_ascii=False)}"
@@ -673,7 +686,10 @@ def get_personalized_exercises(email, count):
 def get_daily_challenges(lang='zh'):
     """Get daily challenges - seeded by date for consistency."""
     today_str = datetime.date.today().isoformat()
-    random.seed(today_str)
+    # Use a dedicated RNG seeded by today's date so the daily set is stable,
+    # WITHOUT reseeding the global `random` module (which would make therapist
+    # codes and other random picks predictable/repeatable process-wide).
+    rng = random.Random(today_str)
 
     challenges_pool = [
         {"id": "c1", "title": {"zh": "☀️ 早晨挑戰", "en": "☀️ Morning Challenge"}, "word": "早晨", "ipa": "zou2 san4", "meaning": "Good morning", "points": 10},
@@ -684,7 +700,7 @@ def get_daily_challenges(lang='zh'):
         {"id": "c6", "title": {"zh": "💪 繞口令", "en": "💪 Tongue Twister"}, "word": "郵差叔叔送信純熟迅速送出", "ipa": "jau4 caai1 suk1 suk1 sung3 seon3 seon4 suk6 seon3 cuk1 sung3 ceot1", "meaning": "The postman delivers mail skillfully and swiftly", "points": 100}
     ]
 
-    daily_tasks = random.sample(challenges_pool, 3)
+    daily_tasks = rng.sample(challenges_pool, 3)
     for task in daily_tasks:
         task['title'] = task['title'].get(lang, task['title']['zh'])
     return daily_tasks

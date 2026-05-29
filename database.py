@@ -9,9 +9,23 @@ from werkzeug.security import generate_password_hash, check_password_hash
 DB_NAME = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cantonese_therapy.db")
 
 def get_db():
-    conn = sqlite3.connect(DB_NAME)
+    # timeout: wait up to 10s for a lock instead of failing instantly with
+    #          "database is locked" when several requests write at once.
+    # foreign_keys: enforce the FK relationships declared in the schema.
+    conn = sqlite3.connect(DB_NAME, timeout=10)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
     return conn
+
+
+def _coerce_score(value, default=0):
+    """Best-effort convert a score to an int so persistence never crashes on
+    missing/invalid input (e.g. a malformed request with a null score)."""
+    try:
+        return int(round(float(value)))
+    except (TypeError, ValueError):
+        return default
+
 
 def init_db():
     conn = get_db()
@@ -274,11 +288,12 @@ def update_login_streak(cursor, user_id):
     streak = cursor.execute('SELECT * FROM login_streaks WHERE user_id = ?', (user_id,)).fetchone()
 
     if streak:
-        last_login = streak['last_login_date'].split('T')[0] if 'T' in streak['last_login_date'] else streak['last_login_date']
+        raw_last = streak['last_login_date'] or ''
+        last_login = raw_last.split('T')[0] if 'T' in raw_last else raw_last
 
         if last_login == today:
             return  # Already logged in today
-        elif (datetime.now().date() - datetime.fromisoformat(last_login).date()).days == 1:
+        elif last_login and (datetime.now().date() - datetime.fromisoformat(last_login).date()).days == 1:
             # Consecutive login
             new_streak = streak['current_streak'] + 1
             longest = max(new_streak, streak['longest_streak'])
@@ -569,35 +584,37 @@ def calculate_next_badges(user_id, progress_records, lang='zh'):
 def save_analysis_result(user_id, client_report, professional_report, raw_data_json):
     """Save analysis result with dual reports (client + professional)."""
     conn = get_db()
-    c = conn.cursor()
-    timestamp = datetime.now().isoformat()
+    try:
+        c = conn.cursor()
+        timestamp = datetime.now().isoformat()
 
-    c.execute('''INSERT INTO analysis_reports
-                 (user_id, report_content, professional_report, raw_data, created_at)
-                 VALUES (?, ?, ?, ?, ?)''',
-              (user_id, client_report, professional_report, json.dumps(raw_data_json), timestamp))
-
-    reading_data = raw_data_json.get('reading_data', [])
-    for item in reading_data:
-        score = item.get('score', 0)
-        accuracy = item.get('accuracy_percent', 100)
-
-        c.execute('''INSERT INTO practice_sessions (user_id, exercise_type, score, details, timestamp)
+        c.execute('''INSERT INTO analysis_reports
+                     (user_id, report_content, professional_report, raw_data, created_at)
                      VALUES (?, ?, ?, ?, ?)''',
-                  (user_id, 'assessment_reading', score, json.dumps(item), timestamp))
+                  (user_id, client_report, professional_report, json.dumps(raw_data_json), timestamp))
 
-        update_practice_count_achievement(c, user_id)
-        if score >= 90:
-            update_perfect_score_achievement(c, user_id)
+        reading_data = raw_data_json.get('reading_data', [])
+        for item in reading_data:
+            score = _coerce_score(item.get('score', 0))
+            accuracy = _coerce_score(item.get('accuracy_percent', 100), default=100)
 
-        if score < 70 or accuracy < 80:
-            c.execute('''INSERT INTO mistakes (user_id, word, target_jyutping, user_jyutping, score, created_at)
-                         VALUES (?, ?, ?, ?, ?, ?)''',
-                      (user_id, item.get('target', ''), item.get('target_ipa', ''),
-                       item.get('transcript', ''), score, timestamp))
+            c.execute('''INSERT INTO practice_sessions (user_id, exercise_type, score, details, timestamp)
+                         VALUES (?, ?, ?, ?, ?)''',
+                      (user_id, 'assessment_reading', score, json.dumps(item), timestamp))
 
-    conn.commit()
-    conn.close()
+            update_practice_count_achievement(c, user_id)
+            if score >= 90:
+                update_perfect_score_achievement(c, user_id)
+
+            if score < 70 or accuracy < 80:
+                c.execute('''INSERT INTO mistakes (user_id, word, target_jyutping, user_jyutping, score, created_at)
+                             VALUES (?, ?, ?, ?, ?, ?)''',
+                          (user_id, item.get('target', ''), item.get('target_ipa', ''),
+                           item.get('transcript', ''), score, timestamp))
+
+        conn.commit()
+    finally:
+        conn.close()
 
     # Update streak for assessment reading entries
     update_user_streak(user_id)
@@ -606,21 +623,24 @@ def save_analysis_result(user_id, client_report, professional_report, raw_data_j
 def save_practice_session(user_id, exercise_type, score, details):
     """Save practice session and update streak + achievements."""
     conn = get_db()
-    c = conn.cursor()
-    timestamp = datetime.now().isoformat()
+    try:
+        c = conn.cursor()
+        timestamp = datetime.now().isoformat()
+        score = _coerce_score(score)
 
-    c.execute('INSERT INTO practice_sessions (user_id, exercise_type, score, details, timestamp) VALUES (?, ?, ?, ?, ?)',
-              (user_id, exercise_type, score, json.dumps(details), timestamp))
+        c.execute('INSERT INTO practice_sessions (user_id, exercise_type, score, details, timestamp) VALUES (?, ?, ?, ?, ?)',
+                  (user_id, exercise_type, score, json.dumps(details), timestamp))
 
-    update_practice_count_achievement(c, user_id)
-    if score >= 90:
-        update_perfect_score_achievement(c, user_id)
+        update_practice_count_achievement(c, user_id)
+        if score >= 90:
+            update_perfect_score_achievement(c, user_id)
 
-    if details and details.get('was_mistake') and score >= 80:
-        update_mistake_master_achievement(c, user_id)
+        if details and details.get('was_mistake') and score >= 80:
+            update_mistake_master_achievement(c, user_id)
 
-    conn.commit()
-    conn.close()
+        conn.commit()
+    finally:
+        conn.close()
 
     # Update user streak in users table
     update_user_streak(user_id)
@@ -629,40 +649,42 @@ def save_practice_session(user_id, exercise_type, score, details):
 def save_challenge_completion(user_id, day_index, avg_score, results):
     """Save challenge completion - Laikaho's version with challenge achievement update."""
     conn = get_db()
-    c = conn.cursor()
-    now = datetime.now()
-    week_number = now.isocalendar()[1]
-    year = now.year
+    try:
+        c = conn.cursor()
+        now = datetime.now()
+        week_number = now.isocalendar()[1]
+        year = now.year
 
-    c.execute('''INSERT INTO challenge_completions
-                 (user_id, day_index, week_number, year, avg_score, results, completed_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?)''',
-              (user_id, day_index, week_number, year, avg_score, json.dumps(results), now.isoformat()))
+        c.execute('''INSERT INTO challenge_completions
+                     (user_id, day_index, week_number, year, avg_score, results, completed_at)
+                     VALUES (?, ?, ?, ?, ?, ?, ?)''',
+                  (user_id, day_index, week_number, year, avg_score, json.dumps(results), now.isoformat()))
 
-    # Update challenge achievement
-    count = c.execute('SELECT COUNT(*) as count FROM challenge_completions WHERE user_id = ?', (user_id,)).fetchone()
-    c.execute('''
-        UPDATE achievement_progress
-        SET current_value = ?, updated_date = ?
-        WHERE user_id = ? AND achievement_code = 'challenge_complete'
-    ''', (count['count'], datetime.now().isoformat(), user_id))
+        # Update challenge achievement
+        count = c.execute('SELECT COUNT(*) as count FROM challenge_completions WHERE user_id = ?', (user_id,)).fetchone()
+        c.execute('''
+            UPDATE achievement_progress
+            SET current_value = ?, updated_date = ?
+            WHERE user_id = ? AND achievement_code = 'challenge_complete'
+        ''', (count['count'], datetime.now().isoformat(), user_id))
 
-    for target in [1, 7, 30]:
-        if count['count'] >= target:
-            badge = get_badge_by_achievement('challenge_complete', target)
-            if badge:
-                existing = c.execute('SELECT id FROM badges WHERE user_id = ? AND badge_code = ?', (user_id, badge['code'])).fetchone()
-                if not existing:
-                    c.execute('''
-                        INSERT INTO badges
-                        (user_id, badge_code, badge_name, badge_description, badge_icon, badge_color, badge_category, awarded_date, progress, progress_target)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ''', (user_id, badge['code'], badge['name'], badge['description'],
-                          badge['icon'], badge['color'], badge['category'],
-                          datetime.now().isoformat(), 100, 100))
+        for target in [1, 7, 30]:
+            if count['count'] >= target:
+                badge = get_badge_by_achievement('challenge_complete', target)
+                if badge:
+                    existing = c.execute('SELECT id FROM badges WHERE user_id = ? AND badge_code = ?', (user_id, badge['code'])).fetchone()
+                    if not existing:
+                        c.execute('''
+                            INSERT INTO badges
+                            (user_id, badge_code, badge_name, badge_description, badge_icon, badge_color, badge_category, awarded_date, progress, progress_target)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ''', (user_id, badge['code'], badge['name'], badge['description'],
+                              badge['icon'], badge['color'], badge['category'],
+                              datetime.now().isoformat(), 100, 100))
 
-    conn.commit()
-    conn.close()
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def get_user_mistakes(user_id):

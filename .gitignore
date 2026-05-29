@@ -1,0 +1,30 @@
+# ── Secrets / config ───────────────────────────────────────
+# NEVER commit API keys. Keep .env local only.
+.env
+.env.*
+.flask_secret
+
+# ── Python ─────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# ── Virtual environment ────────────────────────────────────
+.venv/
+venv/
+env/
+
+# ── Runtime / user data ────────────────────────────────────
+# SQLite database holds user data — keep it out of version control.
+*.db
+*.sqlite3
+# User-uploaded avatars (keep the folder, ignore the contents).
+static/uploads/*
+!static/uploads/.gitkeep
+
+# ── OS / editor ────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

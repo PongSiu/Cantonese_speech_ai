@@ -1,6 +1,7 @@
 import os
 import json
 import random
+import secrets
 from datetime import datetime
 from dotenv import load_dotenv
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
@@ -26,13 +27,47 @@ from services import (
 )
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', 'super_secret_key_for_demo')
+
+# Base directory — used for absolute paths so the app works regardless of CWD.
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
+def _load_or_create_secret_key():
+    """Resolve the Flask session signing key.
+
+    Order of preference:
+      1. SECRET_KEY environment variable (best for production).
+      2. A random key persisted to ``.flask_secret`` so sessions survive
+         restarts without shipping a publicly-known constant.
+      3. A throwaway per-process key (sessions reset on restart) if the file
+         cannot be written.
+    """
+    env_key = os.environ.get('SECRET_KEY')
+    if env_key:
+        return env_key
+    key_path = os.path.join(BASE_DIR, '.flask_secret')
+    try:
+        if os.path.exists(key_path):
+            with open(key_path, 'r', encoding='utf-8') as f:
+                saved = f.read().strip()
+            if saved:
+                return saved
+        new_key = secrets.token_hex(32)
+        with open(key_path, 'w', encoding='utf-8') as f:
+            f.write(new_key)
+        print("[app] SECRET_KEY not set — generated a persistent random key (.flask_secret).")
+        return new_key
+    except Exception as e:
+        print(f"[app] Could not persist secret key ({e}); using a per-process random key.")
+        return secrets.token_hex(32)
+
+
+app.secret_key = _load_or_create_secret_key()
 
 # ProxyFix middleware (from Mike)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
 # Avatar upload configuration — use absolute path so it works regardless of working directory
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_FOLDER = os.path.join(BASE_DIR, 'static', 'uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -408,7 +443,7 @@ def api_challenge_complete():
     if 'user_id' not in session:
         return jsonify({'error': 'Auth'}), 401
 
-    data = request.json
+    data = request.get_json(silent=True) or {}
     day_id = data.get('day_id')
     results = data.get('results', [])
     avg_score = data.get('avg_score', 0)
@@ -505,7 +540,7 @@ def api_submit_analysis_results():
     """Submit analysis results - services returns dict with client_report and professional_report."""
     if 'user_id' not in session:
         return jsonify({'error': 'Auth'}), 401
-    data = request.json
+    data = request.get_json(silent=True) or {}
 
     # generate_analysis_report returns a dict with 'client_report' and 'professional_report' (Pong's version)
     reports = generate_analysis_report(data.get('reading_data'), data.get('conversation_data'))
@@ -590,7 +625,7 @@ def api_practice_submit():
     """Submit practice result and check for new badges (Laikaho)."""
     if 'user_id' not in session:
         return jsonify({'error': 'Auth'}), 401
-    data = request.json
+    data = request.get_json(silent=True) or {}
     database.save_practice_session(
         session['user_id'],
         data.get('exercise_type'),
@@ -670,7 +705,7 @@ def api_user_stats():
 def api_update_name():
     if 'user_id' not in session:
         return jsonify({'error': 'Auth'}), 401
-    name = (request.json or {}).get('name', '').strip()
+    name = (request.get_json(silent=True) or {}).get('name', '').strip()
     if not name:
         user = database.get_user_by_id(session['user_id'])
         ul = (user or {}).get('preferred_language', 'zh')
@@ -685,7 +720,7 @@ def api_update_name():
 def api_change_password():
     if 'user_id' not in session:
         return jsonify({'error': 'Auth'}), 401
-    data = request.json or {}
+    data = request.get_json(silent=True) or {}
     current_pw = data.get('current_password', '')
     new_pw = data.get('new_password', '')
     user = database.get_user_by_id(session['user_id'])
@@ -720,7 +755,7 @@ def api_toggle_ranking():
 def api_set_language():
     if 'user_id' not in session:
         return jsonify({'error': 'Auth'}), 401
-    lang = (request.json or {}).get('language', 'zh')
+    lang = (request.get_json(silent=True) or {}).get('language', 'zh')
     if lang not in ('zh', 'en'):
         lang = 'zh'
     conn = database.get_db()
@@ -762,7 +797,6 @@ def api_profile_stats():
         'current_streak': streak.get('current_streak', 0),
         'longest_streak': streak.get('longest_streak', 0),
         'show_in_ranking': bool(user.get('show_in_ranking', 1)),
-        'role': user.get('role', 'client'),
         'therapist_id': user.get('therapist_id'),
         'therapist_name': _get_therapist_name(user.get('therapist_id')),
     })
@@ -939,7 +973,7 @@ def api_therapist_unbind_client():
     user = get_current_user()
     if not user or user.get('role') != 'therapist':
         return jsonify({'error': 'Forbidden'}), 403
-    client_id = (request.json or {}).get('client_id')
+    client_id = (request.get_json(silent=True) or {}).get('client_id')
     if not client_id:
         return jsonify({'error': 'Missing client_id'}), 400
     conn = database.get_db()
@@ -955,7 +989,7 @@ def api_client_bind():
     user = get_current_user()
     if not user:
         return jsonify({'error': 'Auth'}), 401
-    success = database.link_client_to_therapist(user['id'], (request.json or {}).get('code'))
+    success = database.link_client_to_therapist(user['id'], (request.get_json(silent=True) or {}).get('code'))
     return jsonify({"success": success})
 
 @app.route('/api/therapist/comment', methods=['POST'])
@@ -966,7 +1000,7 @@ def api_therapist_comment():
     user = get_current_user()
     if not user or user.get('role') != 'therapist':
         return jsonify({'error': 'Forbidden'}), 403
-    data = request.json or {}
+    data = request.get_json(silent=True) or {}
     report_id = data.get('report_id')
     comment = data.get('comment')
     if not report_id or comment is None:
@@ -1054,7 +1088,7 @@ def api_synthesize():
     if 'user_id' not in session: 
         return jsonify({'error': 'Auth'}), 401
         
-    text = request.json.get('text')
+    text = (request.get_json(silent=True) or {}).get('text')
     if not text:
         return jsonify({'error': 'No text provided'}), 400
         
@@ -1071,4 +1105,10 @@ def api_synthesize():
     return jsonify({'error': 'Synthesis failed'}), 500
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=3000, debug=True)
+    # Configurable via environment so the same code runs locally (debug on)
+    # and in production (debug off). Defaults preserve the original behaviour.
+    # For deployment, set FLASK_DEBUG=0 to disable the interactive debugger.
+    host = os.environ.get('FLASK_HOST', '0.0.0.0')
+    port = int(os.environ.get('FLASK_PORT', '3000'))
+    debug = os.environ.get('FLASK_DEBUG', '1').strip().lower() not in ('0', 'false', 'no', '')
+    app.run(host=host, port=port, debug=debug)
